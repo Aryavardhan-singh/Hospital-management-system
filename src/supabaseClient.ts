@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
 // Retrieve credentials from environment variables or direct defaults
-let rawUrl = import.meta.env.VITE_SUPABASE_URL || 'https://uyvfzyhzfkyvqnwbpxxr.supabase.co'
-let rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5dmZ6eWh6Zmt5dnFud2JweHhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyMjg0NTMsImV4cCI6MjEwNDgwNDQ1M30.qRI3KvLWgNd3VxqvTycSi0Texhcr8Xq8TV_jyV3byck'
+let rawUrl = import.meta.env.VITE_SUPABASE_URL || 'your_supabase_project_url_here'
+let rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY ||'your_supabase_anon_key_here'
 
 // Sanitize URL: Remove trailing slashes and /rest/v1 if included
 const cleanUrl = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/$/, '')
