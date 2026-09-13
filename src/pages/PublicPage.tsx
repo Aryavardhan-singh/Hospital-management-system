@@ -10,6 +10,7 @@ import L from 'leaflet'
 import { supabase, isSupabaseConfigured } from '@/supabaseClient'
 import { useSupabaseData } from '@/hooks/useSupabaseData'
 import { rankHospitalsForCitizen, CitizenHospitalResult } from '@/lib/citizenRouting'
+import { Link } from 'react-router-dom'
 import {
   MapPin,
   Ambulance,
@@ -25,6 +26,7 @@ import {
   ShieldCheck,
   HeartPulse,
   Star,
+  LayoutDashboard,
 } from 'lucide-react'
 
 // ─── Leaflet icon: citizen pin ────────────────────────────────────────────────
@@ -219,13 +221,24 @@ export const PublicPage: React.FC = () => {
             </div>
           </div>
 
-          <a
-            href="tel:108"
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold transition-colors shadow-md shadow-rose-600/20"
-          >
-            <Phone className="h-3.5 w-3.5" />
-            Call 108
-          </a>
+          <div className="flex items-center gap-2.5">
+            <Link
+              to="/"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors border border-slate-200/80 shadow-sm"
+              title="Return to Command Center Dashboard"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5 text-slate-600" />
+              <span className="hidden sm:inline">Command Center</span>
+            </Link>
+
+            <a
+              href="tel:108"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-extrabold transition-colors shadow-md shadow-rose-600/20"
+            >
+              <Phone className="h-3.5 w-3.5" />
+              Call 108
+            </a>
+          </div>
         </div>
       </header>
 

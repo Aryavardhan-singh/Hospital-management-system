@@ -1,5 +1,5 @@
-import React from 'react'
-import { Search, Bell, Database, UserCheck, Sparkles, RefreshCw } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Search, Bell, Database, UserCheck, Sparkles, RefreshCw, HeartPulse } from 'lucide-react'
 import { Button } from './ui/button'
 
 interface StickyHeaderProps {
@@ -66,6 +66,19 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
           <Database className="h-4 w-4" />
           <span>{isSeeding ? 'Seeding...' : 'Seed Database'}</span>
         </Button>
+
+        {/* Citizen Portal Direct Navigation Link */}
+        <Link
+          to="/find-help"
+          className="h-10 px-3.5 rounded-2xl text-xs font-extrabold bg-gradient-to-r from-rose-50 to-indigo-50 hover:from-rose-100 hover:to-indigo-100 border border-rose-200/80 text-rose-700 flex items-center space-x-2 shadow-sm transition-all hover:shadow hover:-translate-y-0.5"
+          title="Open Citizen Hospital Finder & Emergency Ambulance Request"
+        >
+          <HeartPulse className="h-4 w-4 text-rose-600 animate-pulse" />
+          <span className="hidden sm:inline">Citizen Portal</span>
+          <span className="text-[10px] font-black uppercase px-1.5 py-0.5 bg-rose-600 text-white rounded-md">
+            Emergency
+          </span>
+        </Link>
 
         <div className="h-6 w-px bg-slate-200" />
 

@@ -1,5 +1,5 @@
-import React from 'react'
-import { Database, Truck, Terminal, Activity } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Database, Terminal, Activity, HeartPulse } from 'lucide-react'
 
 interface QuickActionsGridProps {
   onSeed: () => void
@@ -12,6 +12,8 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({
   onNavigateSql,
   onTestCapacity,
 }) => {
+  const navigate = useNavigate()
+
   const actions = [
     {
       label: 'Seed Database',
@@ -35,11 +37,11 @@ export const QuickActionsGrid: React.FC<QuickActionsGridProps> = ({
       onClick: onNavigateSql,
     },
     {
-      label: 'Fleet Telemetry',
-      description: 'View active emergency dispatch units',
-      icon: Truck,
-      color: 'bg-blue-50 text-blue-600 border-blue-100',
-      onClick: () => {},
+      label: 'Citizen Help Portal',
+      description: 'Public hospital finder & ambulance dispatch (/find-help)',
+      icon: HeartPulse,
+      color: 'bg-rose-50 text-rose-600 border-rose-100',
+      onClick: () => navigate('/find-help'),
     },
   ]
 

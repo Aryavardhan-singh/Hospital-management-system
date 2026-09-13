@@ -1,4 +1,4 @@
-import React from 'react'
+import { Link } from 'react-router-dom'
 import {
   LayoutDashboard,
   Building2,
@@ -9,6 +9,8 @@ import {
   HelpCircle,
   ShieldCheck,
   Radio,
+  HeartPulse,
+  ExternalLink,
 } from 'lucide-react'
 
 interface NewSidebarProps {
@@ -145,6 +147,33 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
           </div>
 
           <div>
+            <div className="px-3 pb-2 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center justify-between">
+              <span>CITIZEN & PUBLIC ACCESS</span>
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              </span>
+            </div>
+            <nav className="space-y-1">
+              <Link
+                to="/find-help"
+                className="w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-rose-500/50 transition-all duration-200 group"
+              >
+                <div className="flex items-center space-x-3">
+                  <HeartPulse className="h-4 w-4 text-rose-400 group-hover:scale-110 transition-transform" />
+                  <span>Citizen Help Portal</span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    PUBLIC
+                  </span>
+                  <ExternalLink className="h-3.5 w-3.5 text-slate-500 group-hover:text-white transition-colors" />
+                </div>
+              </Link>
+            </nav>
+          </div>
+
+          <div>
             <div className="px-3 pb-2 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">
               SYSTEME & SECUTRITE
             </div>
@@ -193,12 +222,21 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
               </p>
             </div>
           </div>
-          <div className="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400 font-mono">
-            <div className="flex items-center space-x-1 text-emerald-400">
-              <ShieldCheck className="h-3 w-3" />
-              <span>RLS DEMO OPEN</span>
+          <div className="mt-3 pt-2.5 border-t border-slate-800 flex flex-col gap-2">
+            <Link
+              to="/find-help"
+              className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-white text-xs font-extrabold flex items-center justify-center space-x-1.5 transition-colors border border-rose-500/30"
+            >
+              <HeartPulse className="h-3.5 w-3.5 text-rose-400" />
+              <span>Open Citizen Portal ↗</span>
+            </Link>
+            <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+              <div className="flex items-center space-x-1 text-emerald-400">
+                <ShieldCheck className="h-3 w-3" />
+                <span>RLS DEMO OPEN</span>
+              </div>
+              <span>v2.4.0</span>
             </div>
-            <span>v2.4.0</span>
           </div>
         </div>
       </div>
