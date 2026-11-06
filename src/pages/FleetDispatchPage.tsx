@@ -5,7 +5,7 @@ import { useToasts, ToastNotifications } from '@/components/ToastNotifications'
 import { RoutingScoreCard } from '@/components/RoutingScoreCard'
 import { DispatchMap } from '@/components/DispatchMap'
 import { RoutingResult } from '@/lib/routing'
-import { Truck, Navigation, Building2, Radio, MapPin, RefreshCw, Database, Zap, Brain } from 'lucide-react'
+import { Truck, Navigation, Building2, Radio, MapPin, RefreshCw, Database, Zap, Brain, Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export const FleetDispatchPage: React.FC = () => {
@@ -35,22 +35,25 @@ export const FleetDispatchPage: React.FC = () => {
     [pushToast]
   )
 
-  const { dispatchAmbulance } = useAmbulanceSimulation(
-    ambulances,
-    hospitals,
-    updateAmbulance,
-    handleReroute
-  )
-
   // ── Local UI state ──────────────────────────────────────────
   const [selectedAmbulanceId, setSelectedAmbulanceId] = useState<string | null>(null)
   const [dispatchingId, setDispatchingId] = useState<string | null>(null)
+  const [dispatchSpecialty, setDispatchSpecialty] = useState('')
 
   // Store last dispatch result to show score breakdown
   const [lastDispatch, setLastDispatch] = useState<{
     ambulanceId: string
     result: RoutingResult
   } | null>(null)
+
+  const { dispatchAmbulance } = useAmbulanceSimulation(
+    ambulances,
+    hospitals,
+    updateAmbulance,
+    handleReroute,
+    dispatchSpecialty.trim() || null
+  )
+
 
   // ── KPI counts ──────────────────────────────────────────────
   const idleCount     = ambulances.filter((a) => a.status === 'idle').length
@@ -119,6 +122,29 @@ export const FleetDispatchPage: React.FC = () => {
             <span>{isSeeding ? 'Seeding...' : 'Seed Database'}</span>
           </Button>
         </div>
+      </div>
+
+      {/* ── Specialty Preference Filter ───────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col sm:flex-row items-center gap-3">
+        <div className="flex items-center gap-2 text-slate-500 shrink-0">
+          <Activity className="h-4 w-4 text-indigo-500" />
+          <span className="text-sm font-semibold">Patient specialty requirement:</span>
+        </div>
+        <input
+          type="text"
+          placeholder="e.g. Cardiology, Trauma, Pediatrics… (leave blank for none)"
+          value={dispatchSpecialty}
+          onChange={(e) => setDispatchSpecialty(e.target.value)}
+          className="flex-1 h-10 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400/30 placeholder-slate-300 w-full"
+        />
+        {dispatchSpecialty && (
+          <button
+            onClick={() => setDispatchSpecialty('')}
+            className="text-xs font-bold text-slate-400 hover:text-slate-600 shrink-0"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       {/* ── KPI Bar ─────────────────────────────────────────── */}

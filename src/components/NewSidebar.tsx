@@ -14,10 +14,11 @@ import {
 } from 'lucide-react'
 
 interface NewSidebarProps {
-  activeTab: 'overview' | 'hospitals' | 'ambulances' | 'schema'
-  setActiveTab: (tab: 'overview' | 'hospitals' | 'ambulances' | 'schema') => void
+  activeTab: 'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'schema'
+  setActiveTab: (tab: 'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'schema') => void
   hospitalCount: number
   ambulanceCount: number
+  incomingAlertCount?: number
   isLive: boolean
 }
 
@@ -26,6 +27,7 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
   setActiveTab,
   hospitalCount,
   ambulanceCount,
+  incomingAlertCount = 0,
   isLive,
 }) => {
   const mainNav = [
@@ -46,6 +48,12 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
       label: 'Fleet & Dispatch',
       icon: Truck,
       badge: ambulanceCount > 0 ? ambulanceCount : null,
+    },
+    {
+      id: 'alerts',
+      label: 'ER Pre-Arrival Alerts',
+      icon: Activity,
+      badge: incomingAlertCount > 0 ? `${incomingAlertCount} INCOMING` : null,
     },
   ]
 

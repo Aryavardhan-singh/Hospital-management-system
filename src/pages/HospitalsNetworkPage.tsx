@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { useSupabaseData } from '@/hooks/useSupabaseData'
+import { useAmbulanceSimulation } from '@/hooks/useAmbulanceSimulation'
+import { useToasts, ToastNotifications } from '@/components/ToastNotifications'
 import { HospitalNetworkCard } from '@/components/HospitalNetworkCard'
 import { HospitalDetailModal } from '@/components/HospitalDetailModal'
-import { Hospital } from '@/types'
 import { Building2, Search, Filter, ArrowUpDown, Stethoscope, RefreshCw, Database } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -16,8 +17,52 @@ export const HospitalsNetworkPage: React.FC = () => {
     refetch,
     seedDatabase,
     updateBedOccupancy,
+    updateAmbulance,
     simulateCapacityCrisis,
   } = useSupabaseData()
+
+  // ── Toast System ────────────────────────────────────────────
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToasts()
+
+  const handleReroute = useCallback(
+    (ambulanceId: string, fromName: string, toName: string) => {
+      pushToast(
+        'reroute',
+        `Auto-Reroute: ${ambulanceId}`,
+        `${fromName} reached capacity — redirected to ${toName}`
+      )
+    },
+    [pushToast]
+  )
+
+  const { divertAmbulance, acceptAmbulance } = useAmbulanceSimulation(
+    ambulances,
+    hospitals,
+    updateAmbulance,
+    handleReroute
+  )
+
+  const handleAcceptPatient = async (ambulanceId: string) => {
+    await acceptAmbulance(ambulanceId)
+    pushToast(
+      'info',
+      `ER Accepted: ${ambulanceId}`,
+      'Emergency bay prepped and staff alerted.'
+    )
+  }
+
+  const handleDivertPatient = async (ambulanceId: string, fromHospitalId: string) => {
+    const result = await divertAmbulance(ambulanceId, 'Hospital ER Divert')
+    if (result) {
+      const fromHospital =
+        hospitals.find((h) => h.id === fromHospitalId)?.name || 'Current Hospital'
+      pushToast(
+        'reroute',
+        `ER Diverted: ${ambulanceId}`,
+        `Rerouted from ${fromHospital} → ${result.hospital.name}`
+      )
+    }
+  }
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all')
@@ -211,6 +256,9 @@ export const HospitalsNetworkPage: React.FC = () => {
         </div>
       )}
 
+      {/* Toast Notifications */}
+      <ToastNotifications toasts={toasts} onDismiss={dismissToast} />
+
       {/* Hospital Detail Modal View */}
       <HospitalDetailModal
         hospital={activeHospital}
@@ -219,6 +267,8 @@ export const HospitalsNetworkPage: React.FC = () => {
         onClose={() => setSelectedHospitalId(null)}
         onUpdateOccupancy={updateBedOccupancy}
         onCapacityCrisis={simulateCapacityCrisis}
+        onAcceptPatient={handleAcceptPatient}
+        onDivertPatient={handleDivertPatient}
       />
     </div>
   )

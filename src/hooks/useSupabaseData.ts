@@ -96,6 +96,10 @@ const MOCK_AMBULANCES: Ambulance[] = [
     lng: 75.805,
     status: 'occupied',
     assigned_hospital_id: '11111111-1111-1111-1111-111111111111',
+    er_status: 'accepted',
+    erStatus: 'accepted',
+    patient_condition: 'Polytrauma - Vehicular collision, conscious',
+    triage_level: 'urgent',
   },
   {
     id: 'AMB-102',
@@ -103,6 +107,10 @@ const MOCK_AMBULANCES: Ambulance[] = [
     lng: 75.809,
     status: 'enroute',
     assigned_hospital_id: '22222222-2222-2222-2222-222222222222',
+    er_status: 'pending',
+    erStatus: 'pending',
+    patient_condition: 'Suspected STEMI / Acute coronary syndrome',
+    triage_level: 'critical',
   },
   {
     id: 'AMB-103',
@@ -117,6 +125,10 @@ const MOCK_AMBULANCES: Ambulance[] = [
     lng: 75.795,
     status: 'occupied',
     assigned_hospital_id: '33333333-3333-3333-3333-333333333333',
+    er_status: 'pending',
+    erStatus: 'pending',
+    patient_condition: 'Severe respiratory distress, SpO2 86%',
+    triage_level: 'critical',
   },
 ]
 
@@ -199,10 +211,10 @@ export function useSupabaseData() {
     }
   }, [fetchData])
 
-  // Generic ambulance update helper (lat, lng, status, assigned_hospital_id)
+  // Generic ambulance update helper (lat, lng, status, assigned_hospital_id, er_status)
   const updateAmbulance = useCallback(
     async (ambulanceId: string, patch: Partial<Ambulance>) => {
-      // Optimistic local update for instant map movement
+      // Optimistic local update for instant map movement & UI telemetry
       setAmbulances((prev) =>
         prev.map((a) => (a.id === ambulanceId ? { ...a, ...patch } : a))
       )
@@ -210,16 +222,44 @@ export function useSupabaseData() {
       if (!isSupabaseConfigured()) return
 
       try {
-        const { error } = await supabase
-          .from('ambulances')
-          .update(patch)
-          .eq('id', ambulanceId)
-        if (error) throw error
+        // Send only DB-supported fields to Supabase to prevent schema column errors
+        const dbPatch: Record<string, any> = {}
+        if (patch.lat !== undefined) dbPatch.lat = patch.lat
+        if (patch.lng !== undefined) dbPatch.lng = patch.lng
+        if (patch.status !== undefined) dbPatch.status = patch.status
+        if (patch.assigned_hospital_id !== undefined) dbPatch.assigned_hospital_id = patch.assigned_hospital_id
+
+        if (Object.keys(dbPatch).length > 0) {
+          const { error } = await supabase
+            .from('ambulances')
+            .update(dbPatch)
+            .eq('id', ambulanceId)
+          if (error) throw error
+        }
       } catch (err: any) {
-        console.error('Failed to update ambulance:', err)
+        console.error('Failed to update ambulance in Supabase:', err)
       }
     },
     []
+  )
+
+  // Update ambulance ER pre-arrival status and triage info
+  const updateAmbulanceErStatus = useCallback(
+    async (
+      ambulanceId: string,
+      erStatus: 'pending' | 'accepted' | 'diverted',
+      patientCondition?: string
+    ) => {
+      const patch: Partial<Ambulance> = {
+        er_status: erStatus,
+        erStatus: erStatus,
+      }
+      if (patientCondition) {
+        patch.patient_condition = patientCondition
+      }
+      await updateAmbulance(ambulanceId, patch)
+    },
+    [updateAmbulance]
   )
 
   // Simulate a full capacity crisis on a hospital (sets occupied = total)
@@ -341,6 +381,7 @@ export function useSupabaseData() {
     seedDatabase,
     updateBedOccupancy,
     updateAmbulance,
+    updateAmbulanceErStatus,
     simulateCapacityCrisis,
   }
 }

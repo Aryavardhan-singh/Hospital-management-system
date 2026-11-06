@@ -9,7 +9,7 @@ import {
 import L from 'leaflet'
 import { supabase, isSupabaseConfigured } from '@/supabaseClient'
 import { useSupabaseData } from '@/hooks/useSupabaseData'
-import { rankHospitalsForCitizen, CitizenHospitalResult } from '@/lib/citizenRouting'
+import { rankHospitalsForCitizen, enrichWithRoadRoutes, CitizenHospitalResult } from '@/lib/citizenRouting'
 import { Link } from 'react-router-dom'
 import {
   MapPin,
@@ -138,6 +138,8 @@ export const PublicPage: React.FC = () => {
   // ── Run ranking whenever location or hospitals change ─────────────────────
   useEffect(() => {
     if (userLat == null || userLng == null || hospitals.length === 0) return
+
+    // Show initial straight-line results immediately
     const ranked = rankHospitalsForCitizen(
       userLat,
       userLng,
@@ -146,6 +148,13 @@ export const PublicPage: React.FC = () => {
       3
     )
     setResults(ranked)
+
+    // Then enrich asynchronously with real road distances / ETAs from OSRM
+    let cancelled = false
+    enrichWithRoadRoutes(userLat, userLng, ranked).then((enriched) => {
+      if (!cancelled) setResults(enriched)
+    })
+    return () => { cancelled = true }
   }, [userLat, userLng, hospitals, specialty])
 
   // ── Request Ambulance ─────────────────────────────────────────────────────

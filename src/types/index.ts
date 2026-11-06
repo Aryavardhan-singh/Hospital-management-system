@@ -12,12 +12,19 @@ export interface Hospital {
   created_at?: string
 }
 
+export type ErStatus = 'pending' | 'accepted' | 'diverted'
+export type TriageLevel = 'critical' | 'urgent' | 'stable'
+
 export interface Ambulance {
   id: string
   lat: number
   lng: number
   status: 'idle' | 'enroute' | 'occupied'
   assigned_hospital_id: string | null
+  er_status?: ErStatus
+  erStatus?: ErStatus
+  patient_condition?: string
+  triage_level?: TriageLevel
   created_at?: string
 }
 

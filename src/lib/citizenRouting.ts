@@ -1,5 +1,6 @@
 import { Hospital } from '@/types'
 import { scoreHospital, ScoreBreakdown } from '@/lib/routing'
+import { getRoadRoute } from '@/lib/osrm'
 
 // A citizen "origin" shaped like an Ambulance for the scoring function
 function citizenAsAmbulance(lat: number, lng: number) {
@@ -16,13 +17,13 @@ export interface CitizenHospitalResult {
   hospital: Hospital
   breakdown: ScoreBreakdown
   distanceKm: number
-  estMinutes: number          // straight-line ETA estimate
+  estMinutes: number          // ETA in minutes (road-based when available, straight-line otherwise)
   availabilityLabel: 'Available' | 'Limited' | 'At Capacity'
   availabilityColor: 'green' | 'amber' | 'red'
   reasonText: string
 }
 
-// Average ambulance speed assumption for ETA
+// Average ambulance speed assumption for straight-line ETA fallback
 const AVG_SPEED_KMH = 40
 
 function getAvailabilityLabel(capPct: number): CitizenHospitalResult['availabilityLabel'] {
@@ -61,6 +62,9 @@ function buildReasonText(
 /**
  * Ranks all hospitals for a citizen at (lat, lng) using the smart routing
  * scoring function and returns the top `limit` results.
+ *
+ * Returns immediately using straight-line distances.
+ * Call `enrichWithRoadRoutes` afterward to upgrade ETAs with real driving data.
  */
 export function rankHospitalsForCitizen(
   lat: number,
@@ -97,4 +101,43 @@ export function rankHospitalsForCitizen(
   })
 
   return scored.slice(0, limit)
+}
+
+/**
+ * Enriches a ranked result list with real driving distances and durations
+ * from the OSRM API. Returns a new array; the originals are not mutated.
+ *
+ * Falls back gracefully per-entry if OSRM is unavailable for that pair.
+ */
+export async function enrichWithRoadRoutes(
+  lat: number,
+  lng: number,
+  results: CitizenHospitalResult[]
+): Promise<CitizenHospitalResult[]> {
+  const enriched = await Promise.all(
+    results.map(async (r) => {
+      try {
+        const route = await getRoadRoute([lat, lng], [r.hospital.lat, r.hospital.lng])
+
+        if (route.isRoadRoute) {
+          // Replace ETA with real driving duration, attach road distances to breakdown
+          const updatedBreakdown: ScoreBreakdown = {
+            ...r.breakdown,
+            roadDistanceKm: route.distanceKm,
+            roadDurationMinutes: route.durationMinutes,
+          }
+          return {
+            ...r,
+            breakdown: updatedBreakdown,
+            distanceKm: route.distanceKm,
+            estMinutes: Math.max(1, Math.round(route.durationMinutes)),
+          }
+        }
+      } catch {
+        // Any unexpected error — keep original result
+      }
+      return r
+    })
+  )
+  return enriched
 }

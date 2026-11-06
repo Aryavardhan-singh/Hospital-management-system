@@ -10,11 +10,15 @@ export interface ScoreBreakdown {
   capacityScore: number   // 0–1
   specialtyScore: number  // 0–1
   trafficScore: number    // 0–1
-  distanceKm: number      // raw Euclidean approx in km
+  distanceKm: number      // raw Euclidean approx in km (always present)
   capacityPct: number     // occupied / total * 100
   trafficMultiplier: number // 0.8 – 1.5
   specialtyMatched: boolean
   excluded: boolean       // true if hospital is at ≥95% and others exist
+  /** Driving distance in km from OSRM when available; undefined otherwise */
+  roadDistanceKm?: number
+  /** Driving duration in minutes from OSRM when available; undefined otherwise */
+  roadDurationMinutes?: number
 }
 
 export interface RoutingResult {

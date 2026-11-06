@@ -142,6 +142,10 @@ export function useAmbulanceSimulation(
       await updateAmbulance(ambulanceId, {
         status: 'enroute',
         assigned_hospital_id: result.hospital.id,
+        er_status: 'pending',
+        erStatus: 'pending',
+        patient_condition: 'Emergency patient en route - Triage evaluation pending',
+        triage_level: 'urgent',
       })
 
       return result
@@ -149,5 +153,60 @@ export function useAmbulanceSimulation(
     [updateAmbulance, requiredSpecialty]
   )
 
-  return { dispatchAmbulance }
+  // ── Manual ER Divert ─────────────────────────────────────────────────────
+  /**
+   * Manually divert an active/incoming ambulance to the next best available hospital.
+   * Excludes the currently assigned hospital from candidate selection.
+   */
+  const divertAmbulance = useCallback(
+    async (ambulanceId: string, reason?: string): Promise<RoutingResult | null> => {
+      const amb = ambulancesRef.current.find((a) => a.id === ambulanceId)
+      if (!amb || !amb.assigned_hospital_id) return null
+
+      const currentHospital = hospitalsRef.current.find(
+        (h) => h.id === amb.assigned_hospital_id
+      )
+      const fromName = currentHospital?.name || 'Current Hospital'
+
+      // Exclude the current hospital so router selects the next best alternative
+      const candidates = hospitalsRef.current.filter(
+        (h) => h.id !== amb.assigned_hospital_id
+      )
+      if (candidates.length === 0) return null
+
+      const result = findBestHospital(amb, candidates, requiredSpecialty)
+      if (!result) return null
+
+      await updateAmbulance(ambulanceId, {
+        assigned_hospital_id: result.hospital.id,
+        er_status: 'diverted',
+        erStatus: 'diverted',
+      })
+
+      onRerouteRef.current?.(
+        amb.id,
+        fromName,
+        `${result.hospital.name}${reason ? ` (${reason})` : ''}`
+      )
+
+      return result
+    },
+    [updateAmbulance, requiredSpecialty]
+  )
+
+  // ── Accept Incoming Ambulance ────────────────────────────────────────────
+  /**
+   * Hospital staff accepts incoming ambulance arrival.
+   */
+  const acceptAmbulance = useCallback(
+    async (ambulanceId: string): Promise<void> => {
+      await updateAmbulance(ambulanceId, {
+        er_status: 'accepted',
+        erStatus: 'accepted',
+      })
+    },
+    [updateAmbulance]
+  )
+
+  return { dispatchAmbulance, divertAmbulance, acceptAmbulance }
 }

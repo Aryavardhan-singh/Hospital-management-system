@@ -15,6 +15,8 @@ import {
   Radio,
   Navigation,
   Zap,
+  ArrowRightLeft,
+  Check,
 } from 'lucide-react'
 
 interface HospitalDetailModalProps {
@@ -24,6 +26,8 @@ interface HospitalDetailModalProps {
   onClose: () => void
   onUpdateOccupancy: (hospitalId: string, delta: number) => void
   onCapacityCrisis?: (hospitalId: string) => void
+  onAcceptPatient?: (ambulanceId: string) => void
+  onDivertPatient?: (ambulanceId: string, fromHospitalId: string) => void
 }
 
 export const HospitalDetailModal: React.FC<HospitalDetailModalProps> = ({
@@ -33,6 +37,8 @@ export const HospitalDetailModal: React.FC<HospitalDetailModalProps> = ({
   onClose,
   onUpdateOccupancy,
   onCapacityCrisis,
+  onAcceptPatient,
+  onDivertPatient,
 }) => {
   if (!hospital) return null
 
@@ -232,35 +238,106 @@ export const HospitalDetailModal: React.FC<HospitalDetailModalProps> = ({
             </h3>
 
             {assignedAmbulances.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {assignedAmbulances.map((amb) => (
-                  <div
-                    key={amb.id}
-                    className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center space-x-2.5">
-                      <div className="h-8 w-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                        <Truck className="h-4 w-4" />
+              <div className="space-y-3">
+                {assignedAmbulances.map((amb) => {
+                  const erStatus = amb.er_status || amb.erStatus || 'pending'
+                  const isAccepted = erStatus === 'accepted'
+
+                  return (
+                    <div
+                      key={amb.id}
+                      className={`p-4 rounded-2xl border transition-all text-xs ${
+                        isAccepted
+                          ? 'bg-emerald-50/40 border-emerald-200'
+                          : erStatus === 'diverted'
+                          ? 'bg-purple-50/40 border-purple-200'
+                          : 'bg-slate-50 border-slate-100'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div className="flex items-center space-x-2.5">
+                          <div className={`h-8 w-8 rounded-xl flex items-center justify-center font-bold ${
+                            isAccepted ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-50 text-indigo-600'
+                          }`}>
+                            <Truck className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-slate-900 font-mono">{amb.id}</span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                  amb.status === 'occupied'
+                                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                }`}
+                              >
+                                {amb.status}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                              GPS: {amb.lat.toFixed(4)}, {amb.lng.toFixed(4)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Status badge */}
+                        <div>
+                          {isAccepted ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <Check className="h-3 w-3 text-emerald-700" />
+                              ER Accepted
+                            </span>
+                          ) : erStatus === 'diverted' ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-purple-100 text-purple-800 border border-purple-300">
+                              <ArrowRightLeft className="h-3 w-3 text-purple-700" />
+                              Diverted
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                              Pending ER Acceptance
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-extrabold text-slate-900">{amb.id}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          {amb.lat.toFixed(4)}, {amb.lng.toFixed(4)}
+
+                      {/* Triage / Condition Note */}
+                      <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="text-[11px] font-medium text-slate-600 truncate">
+                          <strong className="text-slate-800">Triage:</strong>{' '}
+                          {amb.patient_condition || 'Incoming emergency patient'}
+                        </div>
+
+                        {/* Action buttons */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            size="sm"
+                            onClick={() => onAcceptPatient?.(amb.id)}
+                            disabled={isAccepted}
+                            className={`h-7 px-2.5 rounded-xl text-[10px] font-extrabold space-x-1 ${
+                              isAccepted
+                                ? 'bg-emerald-600 text-white cursor-default'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            }`}
+                          >
+                            <Check className="h-3 w-3" />
+                            <span>{isAccepted ? 'Accepted' : 'Accept ER'}</span>
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onDivertPatient?.(amb.id, hospital.id)}
+                            className="h-7 px-2.5 rounded-xl border-rose-200 text-rose-700 hover:bg-rose-50 text-[10px] font-extrabold space-x-1"
+                          >
+                            <ArrowRightLeft className="h-3 w-3 text-rose-600" />
+                            <span>Divert</span>
+                          </Button>
                         </div>
                       </div>
                     </div>
-
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                        amb.status === 'occupied'
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}
-                    >
-                      {amb.status}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             ) : (
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 text-center text-xs text-slate-400 flex items-center justify-center gap-2 italic">

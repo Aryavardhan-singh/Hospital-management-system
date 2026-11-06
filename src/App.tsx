@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { NewSidebar } from './components/NewSidebar'
 import { StickyHeader } from './components/StickyHeader'
 import { GlassmorphicBanner } from './components/GlassmorphicBanner'
@@ -7,12 +7,15 @@ import { AnalyticsGrid } from './components/AnalyticsGrid'
 import { QuickActionsGrid } from './components/QuickActionsGrid'
 import { HospitalsNetworkPage } from './pages/HospitalsNetworkPage'
 import { FleetDispatchPage } from './pages/FleetDispatchPage'
+import { HospitalPreArrivalPanel } from './components/HospitalPreArrivalPanel'
 import { SqlViewer } from './components/SqlViewer'
 import { useSupabaseData } from './hooks/useSupabaseData'
+import { useAmbulanceSimulation } from './hooks/useAmbulanceSimulation'
+import { useToasts, ToastNotifications } from './components/ToastNotifications'
 import { Info, AlertCircle, Database } from 'lucide-react'
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'hospitals' | 'ambulances' | 'schema'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'schema'>('overview')
   const [searchTerm, setSearchTerm] = useState('')
 
   const {
@@ -25,7 +28,60 @@ export default function App() {
     refetch,
     seedDatabase,
     updateBedOccupancy,
+    updateAmbulance,
   } = useSupabaseData()
+
+  // ── Toast System ────────────────────────────────────────────
+  const { toasts, push: pushToast, dismiss: dismissToast } = useToasts()
+
+  const handleReroute = useCallback(
+    (ambulanceId: string, fromName: string, toName: string) => {
+      pushToast(
+        'reroute',
+        `Auto-Reroute: ${ambulanceId}`,
+        `${fromName} redirected to ${toName}`
+      )
+    },
+    [pushToast]
+  )
+
+  const { divertAmbulance, acceptAmbulance } = useAmbulanceSimulation(
+    ambulances,
+    hospitals,
+    updateAmbulance,
+    handleReroute
+  )
+
+  const handleAcceptPatient = async (ambulanceId: string) => {
+    await acceptAmbulance(ambulanceId)
+    pushToast(
+      'info',
+      `ER Accepted: ${ambulanceId}`,
+      'Emergency bay prepared and staff alerted for incoming arrival.'
+    )
+  }
+
+  const handleDivertPatient = async (
+    ambulanceId: string,
+    fromHospitalId: string,
+    reason?: string
+  ) => {
+    const result = await divertAmbulance(ambulanceId, reason)
+    if (result) {
+      const fromHospital =
+        hospitals.find((h) => h.id === fromHospitalId)?.name || 'Current Hospital'
+      pushToast(
+        'reroute',
+        `ER Divert: ${ambulanceId}`,
+        `Rerouted from ${fromHospital} → ${result.hospital.name}${reason ? ` (${reason})` : ''}`
+      )
+    }
+    return result
+  }
+
+  const incomingAlertCount = ambulances.filter(
+    (a) => a.status !== 'idle' && a.assigned_hospital_id
+  ).length
 
   return (
     <div className="flex h-screen w-screen bg-[#f8fafc] text-slate-800 overflow-hidden font-sans">
@@ -35,6 +91,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         hospitalCount={hospitals.length}
         ambulanceCount={ambulances.length}
+        incomingAlertCount={incomingAlertCount}
         isLive={isLive}
       />
 
@@ -49,6 +106,9 @@ export default function App() {
           onSeed={seedDatabase}
           onRefresh={refetch}
         />
+
+        {/* Toast Notifications */}
+        <ToastNotifications toasts={toasts} onDismiss={dismissToast} />
 
         {/* Main Body Canvas */}
         <main className="p-8 space-y-8 flex-1">
@@ -119,7 +179,17 @@ export default function App() {
           {/* TAB 3: FLEET & DISPATCH PAGE */}
           {activeTab === 'ambulances' && <FleetDispatchPage />}
 
-          {/* TAB 4: DATABASE SQL SETUP */}
+          {/* TAB 4: ER PRE-ARRIVAL NOTIFICATION PORTAL */}
+          {activeTab === 'alerts' && (
+            <HospitalPreArrivalPanel
+              hospitals={hospitals}
+              ambulances={ambulances}
+              onAcceptPatient={handleAcceptPatient}
+              onDivertPatient={handleDivertPatient}
+            />
+          )}
+
+          {/* TAB 5: DATABASE SQL SETUP */}
           {activeTab === 'schema' && (
             <div className="py-4">
               <SqlViewer />
