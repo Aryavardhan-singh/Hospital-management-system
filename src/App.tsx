@@ -8,6 +8,7 @@ import { QuickActionsGrid } from './components/QuickActionsGrid'
 import { HospitalsNetworkPage } from './pages/HospitalsNetworkPage'
 import { FleetDispatchPage } from './pages/FleetDispatchPage'
 import { HospitalPreArrivalPanel } from './components/HospitalPreArrivalPanel'
+import { AnalyticsPanel } from './components/AnalyticsPanel'
 import { SqlViewer } from './components/SqlViewer'
 import { useSupabaseData } from './hooks/useSupabaseData'
 import { useAmbulanceSimulation } from './hooks/useAmbulanceSimulation'
@@ -15,7 +16,7 @@ import { useToasts, ToastNotifications } from './components/ToastNotifications'
 import { Info, AlertCircle, Database } from 'lucide-react'
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'schema'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'analytics' | 'schema'>('overview')
   const [searchTerm, setSearchTerm] = useState('')
 
   const {
@@ -27,6 +28,7 @@ export default function App() {
     isSeeding,
     refetch,
     seedDatabase,
+    addAmbulances,
     updateBedOccupancy,
     updateAmbulance,
   } = useSupabaseData()
@@ -49,7 +51,10 @@ export default function App() {
     ambulances,
     hospitals,
     updateAmbulance,
-    handleReroute
+    handleReroute,
+    undefined,
+    undefined,
+    { enableMovement: false, enableAutoDiversion: false }
   )
 
   const handleAcceptPatient = async (ambulanceId: string) => {
@@ -177,7 +182,18 @@ export default function App() {
           {activeTab === 'hospitals' && <HospitalsNetworkPage />}
 
           {/* TAB 3: FLEET & DISPATCH PAGE */}
-          {activeTab === 'ambulances' && <FleetDispatchPage />}
+          {activeTab === 'ambulances' && (
+            <FleetDispatchPage
+              hospitals={hospitals}
+              ambulances={ambulances}
+              isSeeding={isSeeding}
+              refetch={refetch}
+              seedDatabase={seedDatabase}
+              updateAmbulance={updateAmbulance}
+              addAmbulances={addAmbulances}
+              updateBedOccupancy={updateBedOccupancy}
+            />
+          )}
 
           {/* TAB 4: ER PRE-ARRIVAL NOTIFICATION PORTAL */}
           {activeTab === 'alerts' && (
@@ -189,7 +205,12 @@ export default function App() {
             />
           )}
 
-          {/* TAB 5: DATABASE SQL SETUP */}
+          {/* TAB 5: RESPONSE ANALYTICS */}
+          {activeTab === 'analytics' && (
+            <AnalyticsPanel hospitals={hospitals} ambulances={ambulances} />
+          )}
+
+          {/* TAB 6: DATABASE SQL SETUP */}
           {activeTab === 'schema' && (
             <div className="py-4">
               <SqlViewer />

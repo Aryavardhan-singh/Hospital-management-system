@@ -7,13 +7,25 @@ export interface Hospital {
   occupied_beds: number
   icu_beds: number
   icu_occupied: number
+  icuBedsTotal: number
+  icuBedsAvailable: number
+  ventilatorsAvailable: number
+  oxygenStatus: 'sufficient' | 'low' | 'critical'
+  bloodTypesAvailable?: string[]
   specialties: string[]
   status: 'operational' | 'busy' | 'critical'
   created_at?: string
 }
 
 export type ErStatus = 'pending' | 'accepted' | 'diverted'
-export type TriageLevel = 'critical' | 'urgent' | 'stable'
+export type EmergencySeverity = 'critical' | 'moderate' | 'minor'
+export type TriageLevel = 'critical' | 'moderate' | 'minor' | 'urgent' | 'stable'
+export type DispatchStage =
+  | 'dispatched'
+  | 'enroute_pickup'
+  | 'picked_up'
+  | 'enroute_hospital'
+  | 'arrived'
 
 export interface Ambulance {
   id: string
@@ -25,6 +37,10 @@ export interface Ambulance {
   erStatus?: ErStatus
   patient_condition?: string
   triage_level?: TriageLevel
+  severity?: EmergencySeverity
+  dispatch_stage?: DispatchStage
+  patient_lat?: number
+  patient_lng?: number
   created_at?: string
 }
 

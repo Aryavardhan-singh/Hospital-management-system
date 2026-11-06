@@ -132,6 +132,53 @@ export const HospitalNetworkCard: React.FC<HospitalNetworkCardProps> = ({
           </div>
         </div>
 
+        {/* Resource Badges: ICU Available · Ventilators · Oxygen */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {/* ICU Available */}
+          {(() => {
+            const icuAvail = hospital.icuBedsAvailable !== undefined
+              ? hospital.icuBedsAvailable
+              : Math.max(0, hospital.icu_beds - hospital.icu_occupied)
+            return (
+              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold border ${
+                icuAvail > 5
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  : icuAvail > 0
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : 'bg-rose-50 text-rose-700 border-rose-200'
+              }`}>
+                🏥 {icuAvail} ICU Avail
+              </span>
+            )
+          })()}
+
+          {/* Ventilators */}
+          {hospital.ventilatorsAvailable !== undefined && (
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold border ${
+              hospital.ventilatorsAvailable > 5
+                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                : hospital.ventilatorsAvailable > 0
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200'
+            }`}>
+              💨 {hospital.ventilatorsAvailable} Vents
+            </span>
+          )}
+
+          {/* Oxygen Status */}
+          {hospital.oxygenStatus && (
+            <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-bold border ${
+              hospital.oxygenStatus === 'sufficient'
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : hospital.oxygenStatus === 'low'
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse'
+            }`}>
+              🫁 O₂: {hospital.oxygenStatus.charAt(0).toUpperCase() + hospital.oxygenStatus.slice(1)}
+            </span>
+          )}
+        </div>
+
         {/* Specialty Pill Badges */}
         <div className="mt-4 pt-3 border-t border-slate-100">
           <div className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-2 flex items-center gap-1">

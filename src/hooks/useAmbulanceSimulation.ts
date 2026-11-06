@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { Hospital, Ambulance } from '@/types'
-import { findBestHospital, RoutingResult } from '@/lib/routing'
+import { findBestHospital, RoutingOptions, RoutingResult } from '@/lib/routing'
 
 const STEP_SIZE          = 0.0008  // degrees per tick (~88m at Jaipur latitude)
 const ARRIVAL_THRESHOLD  = 0.0012  // degrees (~130m) — considered arrived
@@ -33,7 +33,9 @@ export function useAmbulanceSimulation(
   hospitals: Hospital[],
   updateAmbulance: UpdateAmbulanceFn,
   onReroute?: OnRerouteFn,
-  requiredSpecialty?: string | null
+  requiredSpecialty?: string | null,
+  routingOptions?: RoutingOptions,
+  simulationFeatures: { enableMovement?: boolean; enableAutoDiversion?: boolean } = {}
 ) {
   // Always-fresh refs — safe to read inside setInterval / useEffect callbacks
   const ambulancesRef = useRef<Ambulance[]>(ambulances)
@@ -45,8 +47,13 @@ export function useAmbulanceSimulation(
   const onRerouteRef = useRef<OnRerouteFn | undefined>(onReroute)
   useEffect(() => { onRerouteRef.current = onReroute }, [onReroute])
 
+  const routingOptionsRef = useRef<RoutingOptions | undefined>(routingOptions)
+  useEffect(() => { routingOptionsRef.current = routingOptions }, [routingOptions])
+
   // ── GPS Movement Tick ───────────────────────────────────────────────────
   useEffect(() => {
+    if (simulationFeatures.enableMovement === false) return
+
     const interval = setInterval(() => {
       const enroute = ambulancesRef.current.filter(
         (a) => a.status === 'enroute' && a.assigned_hospital_id
@@ -56,6 +63,43 @@ export function useAmbulanceSimulation(
         const target = hospitalsRef.current.find((h) => h.id === amb.assigned_hospital_id)
         if (!target) continue
 
+        // Check if this is a citizen dispatch with two-stage navigation
+        // Stage 1: Heading to pickup citizen at (patient_lat, patient_lng)
+        // Stage 2: Picked up, heading to hospital
+        const isHeadingToPatient =
+          amb.patient_lat != null &&
+          amb.patient_lng != null &&
+          (amb.dispatch_stage === 'enroute_pickup' ||
+            amb.dispatch_stage === 'dispatched' ||
+            !amb.dispatch_stage)
+
+        if (isHeadingToPatient && amb.patient_lat != null && amb.patient_lng != null) {
+          const dLat = amb.patient_lat - amb.lat
+          const dLng = amb.patient_lng - amb.lng
+          const distance = Math.sqrt(dLat * dLat + dLng * dLng)
+
+          if (distance < ARRIVAL_THRESHOLD) {
+            // Reached citizen! Snap to citizen coordinates and advance stage
+            updateAmbulance(amb.id, {
+              lat: amb.patient_lat,
+              lng: amb.patient_lng,
+              dispatch_stage: 'picked_up',
+              status: 'enroute',
+              patient_condition: `${amb.severity?.toUpperCase() || 'Emergency'} patient on board - Transferring to ER`,
+            })
+          } else {
+            // Move one step toward citizen
+            const ratio = STEP_SIZE / distance
+            updateAmbulance(amb.id, {
+              lat: amb.lat + dLat * ratio,
+              lng: amb.lng + dLng * ratio,
+              dispatch_stage: 'enroute_pickup',
+            })
+          }
+          continue
+        }
+
+        // Stage 2: Moving toward the destination hospital
         const dLat = target.lat - amb.lat
         const dLng = target.lng - amb.lng
         const distance = Math.sqrt(dLat * dLat + dLng * dLng)
@@ -66,20 +110,22 @@ export function useAmbulanceSimulation(
             lat: target.lat,
             lng: target.lng,
             status: 'occupied',
+            dispatch_stage: 'arrived',
           })
         } else {
-          // Move one normalised step toward target
+          // Move one normalised step toward hospital
           const ratio = STEP_SIZE / distance
           updateAmbulance(amb.id, {
             lat: amb.lat + dLat * ratio,
             lng: amb.lng + dLng * ratio,
+            dispatch_stage: amb.patient_lat != null ? 'enroute_hospital' : amb.dispatch_stage,
           })
         }
       }
     }, TICK_MS)
 
     return () => clearInterval(interval)
-  }, [updateAmbulance])
+  }, [updateAmbulance, simulationFeatures.enableMovement])
 
   // ── Auto-Diversion Watcher ──────────────────────────────────────────────
   // Track previous capacity values to only trigger when a hospital CROSSES
@@ -87,6 +133,7 @@ export function useAmbulanceSimulation(
   const prevCapacityRef = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
+    if (simulationFeatures.enableAutoDiversion === false) return
     if (hospitals.length === 0) return
 
     for (const hospital of hospitals) {
@@ -109,7 +156,9 @@ export function useAmbulanceSimulation(
           const result = findBestHospital(
             amb,
             hospitalsRef.current,
-            requiredSpecialty
+            requiredSpecialty,
+            amb.severity,
+            routingOptionsRef.current
           )
 
           if (result && result.hospital.id !== hospital.id) {
@@ -124,7 +173,7 @@ export function useAmbulanceSimulation(
 
       prevCapacityRef.current.set(hospital.id, capPct)
     }
-  }, [hospitals, updateAmbulance, requiredSpecialty])
+  }, [hospitals, updateAmbulance, requiredSpecialty, simulationFeatures.enableAutoDiversion])
 
   // ── Dispatch (smart routing) ────────────────────────────────────────────
   /**
@@ -136,7 +185,13 @@ export function useAmbulanceSimulation(
       const amb = ambulancesRef.current.find((a) => a.id === ambulanceId)
       if (!amb || amb.status !== 'idle') return null
 
-      const result = findBestHospital(amb, hospitalsRef.current, requiredSpecialty)
+      const result = findBestHospital(
+        amb,
+        hospitalsRef.current,
+        requiredSpecialty,
+        amb.severity,
+        routingOptionsRef.current
+      )
       if (!result) return null
 
       await updateAmbulance(ambulanceId, {
@@ -174,7 +229,13 @@ export function useAmbulanceSimulation(
       )
       if (candidates.length === 0) return null
 
-      const result = findBestHospital(amb, candidates, requiredSpecialty)
+      const result = findBestHospital(
+        amb,
+        candidates,
+        requiredSpecialty,
+        amb.severity,
+        routingOptionsRef.current
+      )
       if (!result) return null
 
       await updateAmbulance(ambulanceId, {

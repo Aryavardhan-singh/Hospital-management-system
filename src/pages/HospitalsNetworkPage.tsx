@@ -67,6 +67,9 @@ export const HospitalsNetworkPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'critical' | 'available' | 'name'>('critical')
+  const [requireIcu, setRequireIcu] = useState(false)
+  const [requireVentilator, setRequireVentilator] = useState(false)
+  const [oxygenFilter, setOxygenFilter] = useState<'all' | 'sufficient' | 'low' | 'critical'>('all')
 
   // Selected hospital for Modal view
   const [selectedHospitalId, setSelectedHospitalId] = useState<string | null>(null)
@@ -93,7 +96,19 @@ export const HospitalsNetworkPage: React.FC = () => {
         const matchesSpecialty =
           selectedSpecialty === 'all' || h.specialties.includes(selectedSpecialty)
 
-        return matchesSearch && matchesSpecialty
+        // ICU Required filter: at least 1 ICU bed must be available
+        const icuAvail = h.icuBedsAvailable !== undefined
+          ? h.icuBedsAvailable
+          : Math.max(0, h.icu_beds - h.icu_occupied)
+        const matchesIcu = !requireIcu || icuAvail > 0
+
+        // Ventilator Required filter
+        const matchesVentilator = !requireVentilator || (h.ventilatorsAvailable ?? 0) > 0
+
+        // Oxygen Status filter
+        const matchesOxygen = oxygenFilter === 'all' || h.oxygenStatus === oxygenFilter
+
+        return matchesSearch && matchesSpecialty && matchesIcu && matchesVentilator && matchesOxygen
       })
       .sort((a, b) => {
         if (sortBy === 'critical') {
@@ -111,7 +126,7 @@ export const HospitalsNetworkPage: React.FC = () => {
           return a.name.localeCompare(b.name)
         }
       })
-  }, [hospitals, searchQuery, selectedSpecialty, sortBy])
+  }, [hospitals, searchQuery, selectedSpecialty, sortBy, requireIcu, requireVentilator, oxygenFilter])
 
   // Find currently selected hospital instance
   const activeHospital = useMemo(
@@ -164,7 +179,8 @@ export const HospitalsNetworkPage: React.FC = () => {
       </div>
 
       {/* Filter & Sort Control Bar */}
-      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="p-4 rounded-3xl bg-white border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.04)] flex flex-col gap-3">
+        <div className="w-full flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Search Input */}
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -212,6 +228,46 @@ export const HospitalsNetworkPage: React.FC = () => {
             </select>
           </div>
         </div>
+        </div>
+
+        {/* Critical resource filters */}
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+            Resources:
+          </span>
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={requireIcu}
+              onChange={(event) => setRequireIcu(event.target.checked)}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            ICU Bed Required
+          </label>
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={requireVentilator}
+              onChange={(event) => setRequireVentilator(event.target.checked)}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            Ventilator Required
+          </label>
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700">
+            <span className="text-slate-400 font-extrabold uppercase text-[10px]">Oxygen:</span>
+            <select
+              value={oxygenFilter}
+              onChange={(event) => setOxygenFilter(event.target.value as typeof oxygenFilter)}
+              className="bg-transparent text-slate-800 font-bold focus:outline-none cursor-pointer"
+              aria-label="Filter hospitals by oxygen status"
+            >
+              <option value="all">Any Status</option>
+              <option value="sufficient">Sufficient</option>
+              <option value="low">Low</option>
+              <option value="critical">Critical</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       {/* Hospital Cards Responsive Grid */}
@@ -248,6 +304,9 @@ export const HospitalsNetworkPage: React.FC = () => {
             onClick={() => {
               setSearchQuery('')
               setSelectedSpecialty('all')
+              setRequireIcu(false)
+              setRequireVentilator(false)
+              setOxygenFilter('all')
             }}
             className="mt-4 rounded-xl border-slate-200 text-slate-800 font-bold text-xs"
           >

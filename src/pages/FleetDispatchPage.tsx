@@ -1,24 +1,51 @@
-import React, { useState, useCallback } from 'react'
-import { useSupabaseData } from '@/hooks/useSupabaseData'
+import React, { useState, useCallback, useMemo } from 'react'
 import { useAmbulanceSimulation } from '@/hooks/useAmbulanceSimulation'
 import { useToasts, ToastNotifications } from '@/components/ToastNotifications'
 import { RoutingScoreCard } from '@/components/RoutingScoreCard'
 import { DispatchMap } from '@/components/DispatchMap'
-import { RoutingResult } from '@/lib/routing'
+import { IncidentHotspot } from '@/components/DispatchMap'
+import { IncidentSimulationControls } from '@/components/IncidentSimulationControls'
+import { CongestionZone, distanceKm, findBestHospital, RoutingResult } from '@/lib/routing'
+import { Ambulance, Hospital } from '@/types'
 import { Truck, Navigation, Building2, Radio, MapPin, RefreshCw, Database, Zap, Brain, Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
-export const FleetDispatchPage: React.FC = () => {
-  const {
-    hospitals,
-    ambulances,
-    loading,
-    isLive,
-    isSeeding,
-    refetch,
-    seedDatabase,
-    updateAmbulance,
-  } = useSupabaseData()
+const TRAFFIC_JAM_ZONES: CongestionZone[] = [
+  { id: 'traffic-walled-city', name: 'Walled City', lat: 26.9238, lng: 75.8267, radiusKm: 1.4, delayMultiplier: 2.8 },
+  { id: 'traffic-tonk-road', name: 'Tonk Road', lat: 26.8697, lng: 75.8032, radiusKm: 1.6, delayMultiplier: 2.4 },
+  { id: 'traffic-malviya-nagar', name: 'Malviya Nagar', lat: 26.8543, lng: 75.8051, radiusKm: 1.2, delayMultiplier: 2.6 },
+]
+
+const JAIPUR_SIMULATION_CENTER: [number, number] = [26.9124, 75.7873]
+const MCI_REQUEST_LOCATIONS: [number, number][] = [
+  [26.9124, 75.7873],
+  [26.8875, 75.8124],
+  [26.8612, 75.779],
+  [26.928, 75.822],
+  [26.839, 75.795],
+]
+
+interface FleetDispatchPageProps {
+  hospitals: Hospital[]
+  ambulances: Ambulance[]
+  isSeeding: boolean
+  refetch: () => Promise<void>
+  seedDatabase: () => Promise<void>
+  updateAmbulance: (id: string, patch: Partial<Ambulance>) => Promise<void>
+  addAmbulances: (ambulances: Ambulance[]) => Promise<void>
+  updateBedOccupancy: (hospitalId: string, delta: number) => Promise<void>
+}
+
+export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
+  hospitals,
+  ambulances,
+  isSeeding,
+  refetch,
+  seedDatabase,
+  updateAmbulance,
+  addAmbulances,
+  updateBedOccupancy,
+}) => {
 
   // ── Toast System ────────────────────────────────────────────
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts()
@@ -39,6 +66,15 @@ export const FleetDispatchPage: React.FC = () => {
   const [selectedAmbulanceId, setSelectedAmbulanceId] = useState<string | null>(null)
   const [dispatchingId, setDispatchingId] = useState<string | null>(null)
   const [dispatchSpecialty, setDispatchSpecialty] = useState('')
+  const [requiresIcu, setRequiresIcu] = useState(false)
+  const [requiresVentilator, setRequiresVentilator] = useState(false)
+  const [trafficZones, setTrafficZones] = useState<CongestionZone[]>([])
+  const [incidentHotspots, setIncidentHotspots] = useState<IncidentHotspot[]>([])
+  const [isSimulating, setIsSimulating] = useState(false)
+  const routingOptions = useMemo(
+    () => ({ requiresIcu, requiresVentilator, trafficZones }),
+    [requiresIcu, requiresVentilator, trafficZones]
+  )
 
   // Store last dispatch result to show score breakdown
   const [lastDispatch, setLastDispatch] = useState<{
@@ -51,7 +87,8 @@ export const FleetDispatchPage: React.FC = () => {
     hospitals,
     updateAmbulance,
     handleReroute,
-    dispatchSpecialty.trim() || null
+    dispatchSpecialty.trim() || null,
+    routingOptions
   )
 
 
@@ -74,7 +111,165 @@ export const FleetDispatchPage: React.FC = () => {
         `${ambulanceId} dispatched → ${result.hospital.name}`,
         `Routing score: ${Math.round(result.breakdown.total * 100)}% · ${result.breakdown.distanceKm.toFixed(1)} km away`
       )
+    } else {
+      pushToast(
+        'warning',
+        `No suitable hospital for ${ambulanceId}`,
+        'No facility currently meets the selected resource requirements.'
+      )
     }
+  }
+
+  const handleToggleTraffic = () => {
+    setTrafficZones((current) => {
+      if (current.length > 0) {
+        pushToast('info', 'Traffic simulation cleared', 'Routing scores are back to normal.')
+        return []
+      }
+      pushToast(
+        'warning',
+        'Traffic jam simulated',
+        'Congestion penalties are active for the Walled City, Tonk Road, and Malviya Nagar.'
+      )
+      return TRAFFIC_JAM_ZONES
+    })
+  }
+
+  const handleMassCasualty = async () => {
+    setIsSimulating(true)
+    try {
+      const timestamp = Date.now().toString(36)
+      const requests = MCI_REQUEST_LOCATIONS.flatMap(([lat, lng], index) => {
+        const ambulance: Ambulance = {
+          id: `AMB-MCI-${timestamp}-${index + 1}`,
+          lat,
+          lng,
+          status: 'idle',
+          assigned_hospital_id: null,
+          severity: 'moderate',
+        }
+        const route = findBestHospital(ambulance, hospitals, null, null, routingOptions)
+        if (!route) return []
+        return [{
+          ...ambulance,
+          status: 'enroute' as const,
+          assigned_hospital_id: route.hospital.id,
+          er_status: 'pending' as const,
+          patient_condition: 'Mass casualty simulation request',
+          triage_level: 'urgent' as const,
+          dispatch_stage: 'enroute_hospital' as const,
+          created_at: new Date().toISOString(),
+        }]
+      })
+
+      if (requests.length === 0) {
+        pushToast('warning', 'MCI could not be dispatched', 'No hospitals are currently eligible for these requests.')
+        return
+      }
+
+      await addAmbulances(requests)
+      const hotspot: IncidentHotspot = {
+        id: `mci-${timestamp}`,
+        name: 'Mass casualty incident',
+        lat: 26.8875,
+        lng: 75.8124,
+        radiusMeters: 900,
+      }
+      setIncidentHotspots((current) => [...current, hotspot])
+      pushToast(
+        'warning',
+        `MCI simulated: ${requests.length} requests`,
+        'Incoming ambulances were balanced across the network using current routing scores.'
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      pushToast('warning', 'MCI simulation failed', message)
+    } finally {
+      setIsSimulating(false)
+    }
+  }
+
+  const handleCapacitySurge = async () => {
+    const availableHospitals = hospitals
+      .filter((hospital) => hospital.total_beds > 0 && hospital.occupied_beds < hospital.total_beds * 0.95)
+      .sort((a, b) =>
+        distanceKm(JAIPUR_SIMULATION_CENTER[0], JAIPUR_SIMULATION_CENTER[1], a.lat, a.lng) -
+        distanceKm(JAIPUR_SIMULATION_CENTER[0], JAIPUR_SIMULATION_CENTER[1], b.lat, b.lng)
+      )
+    const target = availableHospitals[0]
+    if (!target) {
+      pushToast('warning', 'Capacity surge unavailable', 'All hospitals are already at or above the diversion threshold.')
+      return
+    }
+
+    setIsSimulating(true)
+    try {
+      let inbound = ambulances.find(
+        (ambulance) => ambulance.status === 'enroute' && ambulance.assigned_hospital_id === target.id
+      )
+      if (!inbound) {
+        const idleAmbulance = ambulances.find((ambulance) => ambulance.status === 'idle')
+        if (idleAmbulance) {
+          await updateAmbulance(idleAmbulance.id, {
+            status: 'enroute',
+            assigned_hospital_id: target.id,
+            er_status: 'pending',
+            patient_condition: 'Capacity surge diversion test',
+            triage_level: 'urgent',
+          })
+          inbound = { ...idleAmbulance, status: 'enroute', assigned_hospital_id: target.id }
+        } else {
+          const timestamp = Date.now().toString(36)
+          const simulatedInbound: Ambulance = {
+            id: `AMB-SURGE-${timestamp}`,
+            lat: target.lat - 0.006,
+            lng: target.lng - 0.006,
+            status: 'enroute',
+            assigned_hospital_id: target.id,
+            severity: 'moderate',
+            er_status: 'pending',
+            patient_condition: 'Capacity surge diversion test',
+            triage_level: 'urgent',
+            dispatch_stage: 'enroute_hospital',
+            created_at: new Date().toISOString(),
+          }
+          await addAmbulances([simulatedInbound])
+          inbound = simulatedInbound
+        }
+      }
+
+      setIncidentHotspots((current) => [
+        ...current.filter((hotspot) => hotspot.id !== 'capacity-surge'),
+        {
+          id: 'capacity-surge',
+          name: `${target.name} capacity surge`,
+          lat: target.lat,
+          lng: target.lng,
+          radiusMeters: 700,
+        },
+      ])
+      await updateBedOccupancy(target.id, target.total_beds - target.occupied_beds)
+      pushToast(
+        'warning',
+        `Capacity surge at ${target.name}`,
+        `${inbound.id} was en route; capacity has been raised to trigger automatic diversion.`
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      pushToast('warning', 'Capacity surge failed', message)
+    } finally {
+      setIsSimulating(false)
+    }
+  }
+
+  const handleClearSimulations = () => {
+    setTrafficZones([])
+    setIncidentHotspots([])
+    pushToast(
+      'info',
+      'Simulation map overlays cleared',
+      'Already-created ambulance requests and hospital occupancy remain in place.'
+    )
   }
 
   return (
@@ -125,7 +320,8 @@ export const FleetDispatchPage: React.FC = () => {
       </div>
 
       {/* ── Specialty Preference Filter ───────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col sm:flex-row items-center gap-3">
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row items-center gap-3">
         <div className="flex items-center gap-2 text-slate-500 shrink-0">
           <Activity className="h-4 w-4 text-indigo-500" />
           <span className="text-sm font-semibold">Patient specialty requirement:</span>
@@ -145,7 +341,41 @@ export const FleetDispatchPage: React.FC = () => {
             Clear
           </button>
         )}
+        </div>
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100">
+          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+            Required resources:
+          </span>
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={requiresIcu}
+              onChange={(event) => setRequiresIcu(event.target.checked)}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            ICU bed
+          </label>
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={requiresVentilator}
+              onChange={(event) => setRequiresVentilator(event.target.checked)}
+              className="h-4 w-4 accent-indigo-600"
+            />
+            Ventilator
+          </label>
+        </div>
       </div>
+
+      <IncidentSimulationControls
+        trafficActive={trafficZones.length > 0}
+        incidentCount={incidentHotspots.length}
+        isSimulating={isSimulating}
+        onToggleTraffic={handleToggleTraffic}
+        onMassCasualty={handleMassCasualty}
+        onCapacitySurge={handleCapacitySurge}
+        onClear={handleClearSimulations}
+      />
 
       {/* ── KPI Bar ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
@@ -200,6 +430,8 @@ export const FleetDispatchPage: React.FC = () => {
             hospitals={hospitals}
             ambulances={ambulances}
             selectedAmbulanceId={selectedAmbulanceId}
+            trafficZones={trafficZones}
+            incidentHotspots={incidentHotspots}
           />
         </div>
 

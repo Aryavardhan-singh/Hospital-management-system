@@ -5,6 +5,7 @@ import {
   Truck,
   Database,
   Activity,
+  BarChart3,
   ChevronRight,
   HelpCircle,
   ShieldCheck,
@@ -14,8 +15,8 @@ import {
 } from 'lucide-react'
 
 interface NewSidebarProps {
-  activeTab: 'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'schema'
-  setActiveTab: (tab: 'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'schema') => void
+  activeTab: 'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'analytics' | 'schema'
+  setActiveTab: (tab: 'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'analytics' | 'schema') => void
   hospitalCount: number
   ambulanceCount: number
   incomingAlertCount?: number
@@ -54,6 +55,12 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
       label: 'ER Pre-Arrival Alerts',
       icon: Activity,
       badge: incomingAlertCount > 0 ? `${incomingAlertCount} INCOMING` : null,
+    },
+    {
+      id: 'analytics',
+      label: 'Response Analytics',
+      icon: BarChart3,
+      badge: null,
     },
   ]
 

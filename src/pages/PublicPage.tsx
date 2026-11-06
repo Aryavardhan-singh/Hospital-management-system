@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import {
   MapContainer,
   TileLayer,
@@ -9,7 +9,10 @@ import {
 import L from 'leaflet'
 import { supabase, isSupabaseConfigured } from '@/supabaseClient'
 import { useSupabaseData } from '@/hooks/useSupabaseData'
+import { useAmbulanceSimulation } from '@/hooks/useAmbulanceSimulation'
 import { rankHospitalsForCitizen, enrichWithRoadRoutes, CitizenHospitalResult } from '@/lib/citizenRouting'
+import { CitizenTrackingMap } from '@/components/CitizenTrackingMap'
+import { EmergencySeverity, Ambulance as AmbulanceType } from '@/types'
 import { Link } from 'react-router-dom'
 import {
   MapPin,
@@ -19,7 +22,6 @@ import {
   ChevronRight,
   Search,
   AlertTriangle,
-  CheckCircle2,
   Loader2,
   Navigation,
   Phone,
@@ -83,7 +85,8 @@ type GeoState = 'idle' | 'requesting' | 'granted' | 'denied' | 'manual'
 type DispatchState = 'idle' | 'dispatching' | 'done'
 
 export const PublicPage: React.FC = () => {
-  const { hospitals } = useSupabaseData()
+  const { hospitals, ambulances, updateAmbulance } = useSupabaseData()
+  useAmbulanceSimulation(ambulances, hospitals, updateAmbulance)
 
   const [geoState, setGeoState] = useState<GeoState>('idle')
   const [userLat, setUserLat] = useState<number | null>(null)
@@ -93,9 +96,10 @@ export const PublicPage: React.FC = () => {
 
   const [results, setResults] = useState<CitizenHospitalResult[]>([])
   const [specialty, setSpecialty] = useState('')
+  const [severity, setSeverity] = useState<EmergencySeverity>('moderate')
 
   const [dispatchState, setDispatchState] = useState<DispatchState>('idle')
-  const [dispatchEta, setDispatchEta] = useState<number | null>(null)
+  const [dispatchedAmbulanceId, setDispatchedAmbulanceId] = useState<string | null>(null)
   const [dispatchError, setDispatchError] = useState<string | null>(null)
 
   // ── Geolocation ───────────────────────────────────────────────────────────
@@ -135,7 +139,7 @@ export const PublicPage: React.FC = () => {
     setGeoState('manual')
   }
 
-  // ── Run ranking whenever location or hospitals change ─────────────────────
+  // ── Run ranking whenever location, hospitals, specialty, or severity change ──
   useEffect(() => {
     if (userLat == null || userLng == null || hospitals.length === 0) return
 
@@ -145,7 +149,8 @@ export const PublicPage: React.FC = () => {
       userLng,
       hospitals,
       specialty.trim() || null,
-      3
+      3,
+      severity
     )
     setResults(ranked)
 
@@ -154,8 +159,10 @@ export const PublicPage: React.FC = () => {
     enrichWithRoadRoutes(userLat, userLng, ranked).then((enriched) => {
       if (!cancelled) setResults(enriched)
     })
-    return () => { cancelled = true }
-  }, [userLat, userLng, hospitals, specialty])
+    return () => {
+      cancelled = true
+    }
+  }, [userLat, userLng, hospitals, specialty, severity])
 
   // ── Request Ambulance ─────────────────────────────────────────────────────
   const requestAmbulance = async () => {
@@ -166,39 +173,61 @@ export const PublicPage: React.FC = () => {
     setDispatchError(null)
 
     try {
-      if (isSupabaseConfigured()) {
-        // Try to reuse an idle ambulance first
-        const { data: idles } = await supabase
-          .from('ambulances')
-          .select('*')
-          .eq('status', 'idle')
-          .limit(1)
+      let targetAmbulanceId = ''
 
-        if (idles && idles.length > 0) {
-          const amb = idles[0]
-          await supabase
-            .from('ambulances')
-            .update({
-              lat: userLat,
-              lng: userLng,
+      // Look for an idle ambulance first
+      const idleAmb = ambulances.find((a) => a.status === 'idle')
+      if (idleAmb) {
+        targetAmbulanceId = idleAmb.id
+        await updateAmbulance(idleAmb.id, {
+          status: 'enroute',
+          assigned_hospital_id: top.hospital.id,
+          patient_lat: userLat,
+          patient_lng: userLng,
+          severity,
+          triage_level: severity,
+          dispatch_stage: 'enroute_pickup',
+          er_status: 'pending',
+          patient_condition: `${severity.toUpperCase()} Priority - Citizen Emergency Dispatch`,
+        })
+      } else {
+        // Create or reuse an emergency unit positioned ~1.2km away
+        targetAmbulanceId = `AMB-CIT-${Date.now().toString().slice(-4)}`
+        const startLat = userLat + 0.012
+        const startLng = userLng + 0.011
+
+        const newAmb: AmbulanceType = {
+          id: targetAmbulanceId,
+          lat: startLat,
+          lng: startLng,
+          status: 'enroute',
+          assigned_hospital_id: top.hospital.id,
+          patient_lat: userLat,
+          patient_lng: userLng,
+          severity,
+          triage_level: severity,
+          dispatch_stage: 'enroute_pickup',
+          er_status: 'pending',
+          patient_condition: `${severity.toUpperCase()} Priority - Citizen Emergency Dispatch`,
+        }
+
+        if (isSupabaseConfigured()) {
+          try {
+            await supabase.from('ambulances').insert({
+              id: targetAmbulanceId,
+              lat: startLat,
+              lng: startLng,
               status: 'enroute',
               assigned_hospital_id: top.hospital.id,
             })
-            .eq('id', amb.id)
-        } else {
-          // Create a new ambulance row
-          const newId = `AMB-CIT-${Date.now().toString().slice(-4)}`
-          await supabase.from('ambulances').insert({
-            id: newId,
-            lat: userLat,
-            lng: userLng,
-            status: 'enroute',
-            assigned_hospital_id: top.hospital.id,
-          })
+          } catch (e) {
+            console.warn('Supabase insert:', e)
+          }
         }
+        await updateAmbulance(targetAmbulanceId, newAmb)
       }
-      // In mock mode just simulate success
-      setDispatchEta(top.estMinutes)
+
+      setDispatchedAmbulanceId(targetAmbulanceId)
       setDispatchState('done')
     } catch (err: any) {
       setDispatchError(err.message || 'Failed to dispatch ambulance. Please call emergency services.')
@@ -350,6 +379,92 @@ export const PublicPage: React.FC = () => {
                 Clear
               </button>
             )}
+          </div>
+        )}
+
+        {/* ── Emergency Triage Severity Selector ───────────────────── */}
+        {(geoState === 'granted' || geoState === 'manual') && (
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <div className="flex items-center gap-2 text-slate-800">
+                <HeartPulse className="h-4 w-4 text-rose-500" />
+                <span className="text-sm font-extrabold">Emergency Triage Severity</span>
+              </div>
+              <span className="text-[11px] font-semibold text-slate-400">
+                Optimizes hospital scoring &amp; bed allocation
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setSeverity('critical')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  severity === 'critical'
+                    ? 'bg-rose-50/80 border-rose-300 ring-2 ring-rose-200 shadow-sm'
+                    : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-black text-rose-700 uppercase flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
+                    Critical Care
+                  </span>
+                  <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-rose-200/60 text-rose-800">
+                    ICU Priority
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                  Life-threatening: Cardiac arrest, stroke, severe trauma
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSeverity('moderate')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  severity === 'moderate'
+                    ? 'bg-amber-50/80 border-amber-300 ring-2 ring-amber-200 shadow-sm'
+                    : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-black text-amber-700 uppercase flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    Moderate Urgent
+                  </span>
+                  <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-amber-200/60 text-amber-800">
+                    Standard
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                  Urgent: Fractures, severe pain, asthma attack, high fever
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSeverity('minor')}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  severity === 'minor'
+                    ? 'bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-200 shadow-sm'
+                    : 'bg-slate-50 border-slate-200/80 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-black text-emerald-700 uppercase flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                    Minor Standard
+                  </span>
+                  <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-200/60 text-emerald-800">
+                    Closest Care
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                  Non-urgent: Minor lacerations, sprains, mild dehydration
+                </p>
+              </button>
+            </div>
           </div>
         )}
 
@@ -521,32 +636,27 @@ export const PublicPage: React.FC = () => {
           </div>
         )}
 
-        {/* ── Dispatch Confirmation ─────────────────────────────────── */}
-        {dispatchState === 'done' && dispatchEta != null && (
-          <div className="bg-white rounded-2xl border-2 border-emerald-200 shadow-sm p-8 text-center space-y-4">
-            <div className="h-16 w-16 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-900">Ambulance Dispatched</h2>
-              <p className="text-slate-500 text-sm mt-1.5 max-w-sm mx-auto">
-                An emergency unit is on its way to your location, heading to{' '}
-                <strong className="text-slate-800">{results[0]?.hospital.name}</strong>.
-              </p>
-            </div>
-
-            <div className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-indigo-50 border border-indigo-100">
-              <Clock className="h-5 w-5 text-indigo-600" />
-              <span className="text-lg font-black text-indigo-700">
-                Estimated arrival: ~{dispatchEta} minutes
-              </span>
-            </div>
-
-            <p className="text-[11px] text-slate-400 font-medium">
-              Stay at your location. Track the ambulance live on the{' '}
-              <a href="/" className="text-indigo-600 font-extrabold underline underline-offset-2">admin dashboard</a>.
-            </p>
-          </div>
+        {/* ── Live Citizen Tracking View ─────────────────────────────── */}
+        {dispatchState === 'done' && userLat != null && userLng != null && results[0] && (
+          <CitizenTrackingMap
+            citizenLat={userLat}
+            citizenLng={userLng}
+            ambulance={
+              ambulances.find((a) => a.id === dispatchedAmbulanceId) || {
+                id: dispatchedAmbulanceId || 'AMB-CIT',
+                lat: userLat + 0.012,
+                lng: userLng + 0.011,
+                status: 'enroute',
+                assigned_hospital_id: results[0].hospital.id,
+                dispatch_stage: 'enroute_pickup',
+                patient_lat: userLat,
+                patient_lng: userLng,
+                severity,
+              }
+            }
+            hospital={results[0].hospital}
+            onReset={() => setDispatchState('idle')}
+          />
         )}
 
         {/* ── Footer ───────────────────────────────────────────────────── */}

@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react'
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
+import React, { useEffect } from 'react'
+import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { Hospital, Ambulance } from '@/types'
+import { CongestionZone } from '@/lib/routing'
 import { Building2, Truck, Activity, HeartPulse } from 'lucide-react'
 
 // Center point: Jaipur coordinates (26.9124, 75.7873)
@@ -12,6 +13,16 @@ interface DispatchMapProps {
   hospitals: Hospital[]
   ambulances: Ambulance[]
   selectedAmbulanceId?: string | null
+  trafficZones?: CongestionZone[]
+  incidentHotspots?: IncidentHotspot[]
+}
+
+export interface IncidentHotspot {
+  id: string
+  name: string
+  lat: number
+  lng: number
+  radiusMeters: number
 }
 
 // Component to dynamically pan map when an ambulance or hospital is selected
@@ -124,6 +135,8 @@ export const DispatchMap: React.FC<DispatchMapProps> = ({
   hospitals,
   ambulances,
   selectedAmbulanceId,
+  trafficZones = [],
+  incidentHotspots = [],
 }) => {
   const activeAmbulance = ambulances.find((a) => a.id === selectedAmbulanceId) || null
 
@@ -141,6 +154,50 @@ export const DispatchMap: React.FC<DispatchMapProps> = ({
         />
 
         <MapController selectedAmbulance={activeAmbulance} />
+
+        {trafficZones.map((zone) => (
+          <Circle
+            key={zone.id}
+            center={[zone.lat, zone.lng]}
+            radius={zone.radiusKm * 1000}
+            pathOptions={{
+              color: '#d97706',
+              fillColor: '#f59e0b',
+              fillOpacity: 0.22,
+              weight: 2,
+            }}
+          >
+            <Popup>
+              <div className="text-xs font-bold text-amber-800">
+                Traffic congestion: {zone.name}
+                <div className="font-medium text-slate-500 mt-1">
+                  Simulated route delay ×{zone.delayMultiplier.toFixed(1)}
+                </div>
+              </div>
+            </Popup>
+          </Circle>
+        ))}
+
+        {incidentHotspots.map((hotspot) => (
+          <Circle
+            key={hotspot.id}
+            center={[hotspot.lat, hotspot.lng]}
+            radius={hotspot.radiusMeters}
+            pathOptions={{
+              color: '#e11d48',
+              fillColor: '#f43f5e',
+              fillOpacity: 0.2,
+              weight: 2,
+              dashArray: '6 5',
+            }}
+          >
+            <Popup>
+              <div className="text-xs font-extrabold text-rose-700">
+                Incident hotspot: {hotspot.name}
+              </div>
+            </Popup>
+          </Circle>
+        ))}
 
         {/* Hospital Markers */}
         {hospitals.map((hospital) => {

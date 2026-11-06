@@ -23,6 +23,12 @@ CREATE TABLE hospitals (
     occupied_beds INTEGER NOT NULL DEFAULT 0,
     icu_beds INTEGER NOT NULL DEFAULT 20,
     icu_occupied INTEGER NOT NULL DEFAULT 0,
+    icu_beds_total INTEGER NOT NULL DEFAULT 0,
+    icu_beds_available INTEGER NOT NULL DEFAULT 0,
+    ventilators_available INTEGER NOT NULL DEFAULT 0,
+    oxygen_status TEXT NOT NULL DEFAULT 'critical'
+        CHECK (oxygen_status IN ('sufficient', 'low', 'critical')),
+    blood_types_available TEXT[] NOT NULL DEFAULT '{}',
     specialties TEXT[] NOT NULL DEFAULT '{}',
     status TEXT NOT NULL DEFAULT 'operational',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -54,14 +60,18 @@ BEGIN;
 COMMIT;
 
 -- Seed Sample Data
-INSERT INTO hospitals (id, name, lat, lng, total_beds, occupied_beds, icu_beds, icu_occupied, specialties, status) VALUES
-    ('11111111-1111-1111-1111-111111111111', 'City Central Trauma Center', 40.7128, -74.0060, 250, 228, 45, 42, ARRAY['Trauma Level 1', 'Cardiology', 'Neurosurgery', 'ER'], 'operational'),
-    ('22222222-2222-2222-2222-222222222222', 'St. Jude General Hospital', 40.7306, -73.9352, 180, 126, 30, 18, ARRAY['General Emergency', 'Pediatrics', 'Orthopedics'], 'operational'),
-    ('33333333-3333-3333-3333-333333333333', 'Metropolitan Heart & Vascular Institute', 40.7589, -73.9851, 140, 132, 35, 33, ARRAY['Cardiology', 'Vascular Surgery', 'ICU'], 'busy'),
-    ('44444444-4444-4444-4444-444444444444', 'Northwest Children & Maternity Hospital', 40.7829, -73.9654, 120, 72, 20, 8, ARRAY['Pediatrics', 'Obstetrics', 'Neonatal ICU'], 'operational'),
-    ('55555555-5555-5555-5555-555555555555', 'Eastside Community Emergency Clinic', 40.7282, -73.9799, 90, 87, 15, 14, ARRAY['Urgent Care', 'General ER'], 'critical'),
-    ('66666666-6666-6666-6666-666666666666', 'West Park Medical Center', 40.7648, -73.9808, 200, 140, 35, 22, ARRAY['Oncology', 'Neurology', 'General Surgery'], 'operational'),
-    ('77777777-7777-7777-7777-777777777777', 'Apex Surgical Institute', 40.7484, -73.9857, 80, 45, 10, 3, ARRAY['Orthopedic Surgery', 'Outpatient Care'], 'operational');
+INSERT INTO hospitals (
+    id, name, lat, lng, total_beds, occupied_beds, icu_beds, icu_occupied,
+    icu_beds_total, icu_beds_available, ventilators_available, oxygen_status,
+    blood_types_available, specialties, status
+) VALUES
+    ('11111111-1111-1111-1111-111111111111', 'City Central Trauma Center', 40.7128, -74.0060, 250, 228, 45, 42, 45, 3, 12, 'sufficient', ARRAY['A+', 'A-', 'B+', 'O+', 'O-'], ARRAY['Trauma Level 1', 'Cardiology', 'Neurosurgery', 'ER'], 'operational'),
+    ('22222222-2222-2222-2222-222222222222', 'St. Jude General Hospital', 40.7306, -73.9352, 180, 126, 30, 18, 30, 12, 8, 'sufficient', ARRAY['A+', 'B+', 'O+', 'AB+'], ARRAY['General Emergency', 'Pediatrics', 'Orthopedics'], 'operational'),
+    ('33333333-3333-3333-3333-333333333333', 'Metropolitan Heart & Vascular Institute', 40.7589, -73.9851, 140, 132, 35, 33, 35, 2, 4, 'low', ARRAY['B+', 'O+', 'O-'], ARRAY['Cardiology', 'Vascular Surgery', 'ICU'], 'busy'),
+    ('44444444-4444-4444-4444-444444444444', 'Northwest Children & Maternity Hospital', 40.7829, -73.9654, 120, 72, 20, 8, 20, 12, 5, 'sufficient', ARRAY['A+', 'B+', 'O+'], ARRAY['Pediatrics', 'Obstetrics', 'Neonatal ICU'], 'operational'),
+    ('55555555-5555-5555-5555-555555555555', 'Eastside Community Emergency Clinic', 40.7282, -73.9799, 90, 87, 15, 14, 15, 1, 0, 'critical', ARRAY['A+', 'O+'], ARRAY['Urgent Care', 'General ER'], 'critical'),
+    ('66666666-6666-6666-6666-666666666666', 'West Park Medical Center', 40.7648, -73.9808, 200, 140, 35, 22, 35, 13, 9, 'sufficient', ARRAY['A+', 'B+', 'O+', 'AB-'], ARRAY['Oncology', 'Neurology', 'General Surgery'], 'operational'),
+    ('77777777-7777-7777-7777-777777777777', 'Apex Surgical Institute', 40.7484, -73.9857, 80, 45, 10, 3, 10, 7, 3, 'sufficient', ARRAY['A+', 'O+'], ARRAY['Orthopedic Surgery', 'Outpatient Care'], 'operational');
 
 INSERT INTO ambulances (id, lat, lng, status, assigned_hospital_id) VALUES
     ('AMB-101', 40.7180, -74.0010, 'occupied', '11111111-1111-1111-1111-111111111111'),

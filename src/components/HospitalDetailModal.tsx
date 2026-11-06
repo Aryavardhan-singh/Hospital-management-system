@@ -231,6 +231,97 @@ export const HospitalDetailModal: React.FC<HospitalDetailModalProps> = ({
             </div>
           </div>
 
+          {/* Resource Inventory: Ventilators · Oxygen · Blood Bank */}
+          {(hospital.ventilatorsAvailable !== undefined || hospital.oxygenStatus || hospital.bloodTypesAvailable) && (
+            <div>
+              <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                <Activity className="h-3.5 w-3.5 text-indigo-600" /> Critical Resource Inventory
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Ventilators */}
+                {hospital.ventilatorsAvailable !== undefined && (
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                    <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                      💨 Ventilators
+                    </div>
+                    <div className={`text-2xl font-black font-mono mt-1 ${
+                      hospital.ventilatorsAvailable === 0 ? 'text-rose-700' :
+                      hospital.ventilatorsAvailable <= 3 ? 'text-amber-700' : 'text-slate-900'
+                    }`}>
+                      {hospital.ventilatorsAvailable}
+                    </div>
+                    <div className="text-[11px] font-bold text-slate-500 mt-0.5">Units Available</div>
+                  </div>
+                )}
+
+                {/* Oxygen Status */}
+                {hospital.oxygenStatus && (
+                  <div className={`p-4 rounded-2xl border ${
+                    hospital.oxygenStatus === 'sufficient'
+                      ? 'bg-emerald-50/60 border-emerald-100'
+                      : hospital.oxygenStatus === 'low'
+                      ? 'bg-amber-50/60 border-amber-200'
+                      : 'bg-rose-50/60 border-rose-200'
+                  }`}>
+                    <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                      🫁 Oxygen Supply
+                    </div>
+                    <div className={`text-lg font-black mt-1 capitalize ${
+                      hospital.oxygenStatus === 'sufficient' ? 'text-emerald-700' :
+                      hospital.oxygenStatus === 'low' ? 'text-amber-700' : 'text-rose-700'
+                    }`}>
+                      {hospital.oxygenStatus}
+                    </div>
+                    <div className="text-[11px] font-bold text-slate-500 mt-0.5">Supply Level</div>
+                  </div>
+                )}
+
+                {/* ICU Available */}
+                {(() => {
+                  const icuAvail = hospital.icuBedsAvailable !== undefined
+                    ? hospital.icuBedsAvailable
+                    : Math.max(0, hospital.icu_beds - hospital.icu_occupied)
+                  return (
+                    <div className={`p-4 rounded-2xl border ${
+                      icuAvail > 5 ? 'bg-emerald-50/60 border-emerald-100' :
+                      icuAvail > 0 ? 'bg-amber-50/60 border-amber-200' : 'bg-rose-50/60 border-rose-200'
+                    }`}>
+                      <div className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+                        🏥 ICU Available
+                      </div>
+                      <div className={`text-2xl font-black font-mono mt-1 ${
+                        icuAvail === 0 ? 'text-rose-700' :
+                        icuAvail <= 3 ? 'text-amber-700' : 'text-emerald-800'
+                      }`}>
+                        {icuAvail}
+                      </div>
+                      <div className="text-[11px] font-bold text-slate-500 mt-0.5">Beds Free</div>
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {/* Blood Bank */}
+              {hospital.bloodTypesAvailable && hospital.bloodTypesAvailable.length > 0 && (
+                <div className="mt-4 p-4 rounded-2xl bg-rose-50/50 border border-rose-100">
+                  <div className="text-[10px] font-extrabold text-rose-700 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    🩸 Blood Bank Available
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {hospital.bloodTypesAvailable.map((bt) => (
+                      <span
+                        key={bt}
+                        className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200"
+                      >
+                        {bt}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Assigned Emergency Ambulances Section */}
           <div>
             <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
