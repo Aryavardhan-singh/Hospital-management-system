@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '@/supabaseClient'
 import { Hospital, Ambulance } from '@/types'
+import { reportDataWriteError } from '@/lib/dataErrors'
 
 const MOCK_HOSPITALS: Hospital[] = [
   {
@@ -231,12 +232,76 @@ function toHospitalRecord(hospital: Hospital) {
   }
 }
 
+function normalizeAmbulance(row: Record<string, unknown>): Ambulance {
+  const optionalNumber = (value: unknown) =>
+    typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  const erStatus = row.er_status
+  const triageLevel = row.triage_level
+  const severity = row.severity
+  const dispatchStage = row.dispatch_stage
+
+  return {
+    id: String(row.id ?? ''),
+    lat: typeof row.lat === 'number' ? row.lat : 0,
+    lng: typeof row.lng === 'number' ? row.lng : 0,
+    status: row.status === 'enroute' || row.status === 'occupied' ? row.status : 'idle',
+    assigned_hospital_id:
+      typeof row.assigned_hospital_id === 'string' ? row.assigned_hospital_id : null,
+    er_status:
+      erStatus === 'accepted' || erStatus === 'diverted' || erStatus === 'pending'
+        ? erStatus
+        : undefined,
+    erStatus:
+      erStatus === 'accepted' || erStatus === 'diverted' || erStatus === 'pending'
+        ? erStatus
+        : undefined,
+    patient_condition:
+      typeof row.patient_condition === 'string' ? row.patient_condition : undefined,
+    triage_level:
+      triageLevel === 'critical' || triageLevel === 'moderate' || triageLevel === 'minor' ||
+      triageLevel === 'urgent' || triageLevel === 'stable'
+        ? triageLevel
+        : undefined,
+    severity:
+      severity === 'critical' || severity === 'moderate' || severity === 'minor'
+        ? severity
+        : undefined,
+    dispatch_stage:
+      dispatchStage === 'dispatched' || dispatchStage === 'enroute_pickup' ||
+      dispatchStage === 'picked_up' || dispatchStage === 'enroute_hospital' ||
+      dispatchStage === 'arrived'
+        ? dispatchStage
+        : undefined,
+    patient_lat: optionalNumber(row.patient_lat),
+    patient_lng: optionalNumber(row.patient_lng),
+    created_at: typeof row.created_at === 'string' ? row.created_at : undefined,
+  }
+}
+
+function toAmbulanceRecord(ambulance: Ambulance) {
+  return {
+    id: ambulance.id,
+    lat: ambulance.lat,
+    lng: ambulance.lng,
+    status: ambulance.status,
+    assigned_hospital_id: ambulance.assigned_hospital_id,
+    er_status: ambulance.er_status ?? ambulance.erStatus ?? 'pending',
+    patient_condition: ambulance.patient_condition ?? null,
+    triage_level: ambulance.triage_level ?? null,
+    severity: ambulance.severity ?? null,
+    dispatch_stage: ambulance.dispatch_stage ?? null,
+    patient_lat: ambulance.patient_lat ?? null,
+    patient_lng: ambulance.patient_lng ?? null,
+  }
+}
+
 export function useSupabaseData() {
   const [hospitals, setHospitals] = useState<Hospital[]>([])
   const [ambulances, setAmbulances] = useState<Ambulance[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [isLive, setIsLive] = useState<boolean>(false)
+  const [isUsingMockData, setIsUsingMockData] = useState<boolean>(false)
   const [isSeeding, setIsSeeding] = useState<boolean>(false)
 
   // Fetch initial data
@@ -245,6 +310,7 @@ export function useSupabaseData() {
       setHospitals(MOCK_HOSPITALS)
       setAmbulances(MOCK_AMBULANCES)
       setIsLive(false)
+      setIsUsingMockData(true)
       setLoading(false)
       return
     }
@@ -259,6 +325,7 @@ export function useSupabaseData() {
       if (hospRes.error) throw hospRes.error
       if (ambRes.error) throw ambRes.error
 
+      const usingMockData = !hospRes.data?.length || !ambRes.data?.length
       if (hospRes.data && hospRes.data.length > 0) {
         setHospitals(hospRes.data.map((row) => normalizeHospital(row as Record<string, unknown>)))
       } else {
@@ -266,12 +333,13 @@ export function useSupabaseData() {
       }
 
       if (ambRes.data && ambRes.data.length > 0) {
-        setAmbulances(ambRes.data as Ambulance[])
+        setAmbulances(ambRes.data.map((row) => normalizeAmbulance(row as Record<string, unknown>)))
       } else {
         setAmbulances(MOCK_AMBULANCES)
       }
 
       setIsLive(true)
+      setIsUsingMockData(usingMockData)
       setError(null)
     } catch (err: any) {
       console.error('Supabase fetch error:', err)
@@ -279,6 +347,7 @@ export function useSupabaseData() {
       setHospitals(MOCK_HOSPITALS)
       setAmbulances(MOCK_AMBULANCES)
       setIsLive(false)
+      setIsUsingMockData(true)
     } finally {
       setLoading(false)
     }
@@ -294,19 +363,33 @@ export function useSupabaseData() {
     try {
       setIsSeeding(true)
       // Upsert hospitals
-      const { error: hErr } = await supabase
+      const { data: hospitalRows, error: hErr } = await supabase
         .from('hospitals')
         .upsert(MOCK_HOSPITALS.map(toHospitalRecord), { onConflict: 'id' })
+        .select('id')
       if (hErr) throw hErr
+      if (!hospitalRows || hospitalRows.length !== MOCK_HOSPITALS.length) {
+        throw new Error('The database did not confirm every hospital seed record.')
+      }
 
       // Upsert ambulances
-      const { error: aErr } = await supabase.from('ambulances').upsert(MOCK_AMBULANCES, { onConflict: 'id' })
+      const { data: ambulanceRows, error: aErr } = await supabase
+        .from('ambulances')
+        .upsert(MOCK_AMBULANCES.map(toAmbulanceRecord), { onConflict: 'id' })
+        .select('id')
       if (aErr) throw aErr
+      if (!ambulanceRows || ambulanceRows.length !== MOCK_AMBULANCES.length) {
+        throw new Error('The database did not confirm every ambulance seed record.')
+      }
 
       await fetchData()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Seeding error:', err)
-      setError(`Seeding failed: ${err.message}`)
+      const failure = reportDataWriteError(
+        'Database seeding',
+        err instanceof Error ? err : new Error(String(err))
+      )
+      setError(failure.message)
     } finally {
       setIsSeeding(false)
     }
@@ -316,62 +399,67 @@ export function useSupabaseData() {
     if (newAmbulances.length === 0) return
 
     const newIds = new Set(newAmbulances.map((ambulance) => ambulance.id))
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error: insertError } = await supabase
+          .from('ambulances')
+          .insert(newAmbulances.map(toAmbulanceRecord))
+          .select('id')
+        if (insertError) throw insertError
+        if (!data || data.length !== newAmbulances.length) {
+          throw new Error('The database did not confirm every ambulance record.')
+        }
+      } catch (error) {
+        const failure = reportDataWriteError('Adding ambulance records', error)
+        setError(failure.message)
+        throw failure
+      }
+    }
+
     setAmbulances((previous) => [
       ...previous.filter((ambulance) => !newIds.has(ambulance.id)),
       ...newAmbulances,
     ])
-
-    if (!isSupabaseConfigured()) return
-
-    try {
-      const { error: insertError } = await supabase.from('ambulances').insert(
-        newAmbulances.map((ambulance) => ({
-          id: ambulance.id,
-          lat: ambulance.lat,
-          lng: ambulance.lng,
-          status: ambulance.status,
-          assigned_hospital_id: ambulance.assigned_hospital_id,
-        }))
-      )
-      if (insertError) throw insertError
-    } catch (error) {
-      setAmbulances((previous) =>
-        previous.filter((ambulance) => !newIds.has(ambulance.id))
-      )
-      const message = error instanceof Error ? error.message : String(error)
-      setError(`Failed to add simulated ambulance requests: ${message}`)
-      throw error
-    }
   }, [])
 
   // Generic ambulance update helper (lat, lng, status, assigned_hospital_id, er_status)
   const updateAmbulance = useCallback(
     async (ambulanceId: string, patch: Partial<Ambulance>) => {
-      // Optimistic local update for instant map movement & UI telemetry
+      if (isSupabaseConfigured()) {
+        try {
+          const dbPatch: Record<string, unknown> = {}
+          if (patch.lat !== undefined) dbPatch.lat = patch.lat
+          if (patch.lng !== undefined) dbPatch.lng = patch.lng
+          if (patch.status !== undefined) dbPatch.status = patch.status
+          if (patch.assigned_hospital_id !== undefined) dbPatch.assigned_hospital_id = patch.assigned_hospital_id
+          const erStatus = patch.er_status ?? patch.erStatus
+          if (erStatus !== undefined) dbPatch.er_status = erStatus
+          if (patch.patient_condition !== undefined) dbPatch.patient_condition = patch.patient_condition
+          if (patch.triage_level !== undefined) dbPatch.triage_level = patch.triage_level
+          if (patch.severity !== undefined) dbPatch.severity = patch.severity
+          if (patch.dispatch_stage !== undefined) dbPatch.dispatch_stage = patch.dispatch_stage
+          if (patch.patient_lat !== undefined) dbPatch.patient_lat = patch.patient_lat
+          if (patch.patient_lng !== undefined) dbPatch.patient_lng = patch.patient_lng
+
+          if (Object.keys(dbPatch).length > 0) {
+            const { data, error } = await supabase
+              .from('ambulances')
+              .update(dbPatch)
+              .eq('id', ambulanceId)
+              .select('id')
+            if (error) throw error
+            if (!data || data.length === 0) throw new Error('The ambulance record was not found.')
+          }
+        } catch (error) {
+          const failure = reportDataWriteError(`Updating ambulance ${ambulanceId}`, error)
+          setError(failure.message)
+          throw failure
+        }
+      }
+
       setAmbulances((prev) =>
         prev.map((a) => (a.id === ambulanceId ? { ...a, ...patch } : a))
       )
-
-      if (!isSupabaseConfigured()) return
-
-      try {
-        // Send only DB-supported fields to Supabase to prevent schema column errors
-        const dbPatch: Record<string, any> = {}
-        if (patch.lat !== undefined) dbPatch.lat = patch.lat
-        if (patch.lng !== undefined) dbPatch.lng = patch.lng
-        if (patch.status !== undefined) dbPatch.status = patch.status
-        if (patch.assigned_hospital_id !== undefined) dbPatch.assigned_hospital_id = patch.assigned_hospital_id
-
-        if (Object.keys(dbPatch).length > 0) {
-          const { error } = await supabase
-            .from('ambulances')
-            .update(dbPatch)
-            .eq('id', ambulanceId)
-          if (error) throw error
-        }
-      } catch (err: any) {
-        console.error('Failed to update ambulance in Supabase:', err)
-      }
     },
     []
   )
@@ -401,24 +489,27 @@ export function useSupabaseData() {
       const hospital = hospitals.find((h) => h.id === hospitalId)
       if (!hospital) return
 
-      // Optimistic local update so the real-time watcher fires immediately
+      if (isSupabaseConfigured()) {
+        try {
+          const { data, error } = await supabase
+            .from('hospitals')
+            .update({ occupied_beds: hospital.total_beds })
+            .eq('id', hospitalId)
+            .select('id')
+          if (error) throw error
+          if (!data || data.length === 0) throw new Error('The hospital record was not found.')
+        } catch (error) {
+          const failure = reportDataWriteError('Simulating hospital capacity surge', error)
+          setError(failure.message)
+          throw failure
+        }
+      }
+
       setHospitals((prev) =>
         prev.map((h) =>
-          h.id === hospitalId ? { ...h, occupied_beds: h.total_beds } : h
+          h.id === hospitalId ? { ...h, occupied_beds: hospital.total_beds } : h
         )
       )
-
-      if (!isSupabaseConfigured()) return
-
-      try {
-        const { error } = await supabase
-          .from('hospitals')
-          .update({ occupied_beds: hospital.total_beds })
-          .eq('id', hospitalId)
-        if (error) throw error
-      } catch (err: any) {
-        console.error('Failed to simulate capacity crisis:', err)
-      }
     },
     [hospitals]
   )
@@ -431,22 +522,25 @@ export function useSupabaseData() {
 
       const newOccupied = Math.max(0, Math.min(target.total_beds, target.occupied_beds + occupiedBedsDelta))
 
-      // Optimistic state update for instant UI feedback
+      if (isSupabaseConfigured()) {
+        try {
+          const { data, error } = await supabase
+            .from('hospitals')
+            .update({ occupied_beds: newOccupied })
+            .eq('id', hospitalId)
+            .select('id')
+          if (error) throw error
+          if (!data || data.length === 0) throw new Error('The hospital record was not found.')
+        } catch (error) {
+          const failure = reportDataWriteError('Updating hospital bed occupancy', error)
+          setError(failure.message)
+          throw failure
+        }
+      }
+
       setHospitals((prev) =>
         prev.map((h) => (h.id === hospitalId ? { ...h, occupied_beds: newOccupied } : h))
       )
-
-      if (!isSupabaseConfigured()) return
-
-      try {
-        const { error } = await supabase
-          .from('hospitals')
-          .update({ occupied_beds: newOccupied })
-          .eq('id', hospitalId)
-        if (error) throw error
-      } catch (err: any) {
-        console.error('Failed to update bed occupancy:', err)
-      }
     },
     [hospitals]
   )
@@ -490,7 +584,7 @@ export function useSupabaseData() {
         (payload) => {
           if (payload.eventType === 'INSERT') {
           setAmbulances((prev) => {
-            const inserted = payload.new as Ambulance
+            const inserted = normalizeAmbulance(payload.new as Record<string, unknown>)
             return prev.some((ambulance) => ambulance.id === inserted.id)
               ? prev.map((ambulance) =>
                   ambulance.id === inserted.id ? { ...ambulance, ...inserted } : ambulance
@@ -499,7 +593,11 @@ export function useSupabaseData() {
           })
           } else if (payload.eventType === 'UPDATE') {
             setAmbulances((prev) =>
-              prev.map((a) => (a.id === payload.new.id ? ({ ...a, ...payload.new } as Ambulance) : a))
+              prev.map((a) =>
+                a.id === payload.new.id
+                  ? normalizeAmbulance({ ...a, ...payload.new } as Record<string, unknown>)
+                  : a
+              )
             )
           } else if (payload.eventType === 'DELETE') {
             setAmbulances((prev) => prev.filter((a) => a.id === payload.old.id))
@@ -523,6 +621,7 @@ export function useSupabaseData() {
     loading,
     error,
     isLive,
+    isUsingMockData,
     isSeeding,
     isConfigured: isSupabaseConfigured(),
     refetch: fetchData,

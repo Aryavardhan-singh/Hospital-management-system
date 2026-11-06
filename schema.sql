@@ -35,6 +35,17 @@ CREATE TABLE ambulances (
     lng DOUBLE PRECISION NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('idle', 'enroute', 'occupied')),
     assigned_hospital_id UUID REFERENCES hospitals(id) ON DELETE SET NULL,
+    er_status TEXT NOT NULL DEFAULT 'pending'
+        CHECK (er_status IN ('pending', 'accepted', 'diverted')),
+    patient_condition TEXT,
+    triage_level TEXT
+        CHECK (triage_level IN ('critical', 'moderate', 'minor', 'urgent', 'stable')),
+    severity TEXT
+        CHECK (severity IN ('critical', 'moderate', 'minor')),
+    dispatch_stage TEXT
+        CHECK (dispatch_stage IN ('dispatched', 'enroute_pickup', 'picked_up', 'enroute_hospital', 'arrived')),
+    patient_lat DOUBLE PRECISION,
+    patient_lng DOUBLE PRECISION,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

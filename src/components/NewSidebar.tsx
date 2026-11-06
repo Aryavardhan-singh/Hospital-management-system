@@ -13,30 +13,43 @@ import {
   HeartPulse,
   ExternalLink,
 } from 'lucide-react'
+import { AdminTab } from '@/types/roles'
 
 interface NewSidebarProps {
-  activeTab: 'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'analytics' | 'schema'
-  setActiveTab: (tab: 'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'analytics' | 'schema') => void
+  activeTab: AdminTab
+  setActiveTab: (tab: AdminTab) => void
+  visibleTabs: AdminTab[]
   hospitalCount: number
   ambulanceCount: number
   incomingAlertCount?: number
   isLive: boolean
+  isUsingMockData: boolean
 }
 
 export const NewSidebar: React.FC<NewSidebarProps> = ({
   activeTab,
   setActiveTab,
+  visibleTabs,
   hospitalCount,
   ambulanceCount,
   incomingAlertCount = 0,
   isLive,
+  isUsingMockData,
 }) => {
+  const isShowingLiveData = isLive && !isUsingMockData
+
   const mainNav = [
     {
       id: 'overview',
       label: 'Command Center',
       icon: LayoutDashboard,
       badge: null,
+    },
+    {
+      id: 'beds',
+      label: 'Bed Adjustments',
+      icon: Building2,
+      badge: hospitalCount > 0 ? hospitalCount : null,
     },
     {
       id: 'hospitals',
@@ -97,20 +110,26 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
             <span className="relative flex h-2.5 w-2.5">
               <span
                 className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
-                  isLive ? 'bg-emerald-400 opacity-75' : 'bg-amber-400 opacity-75'
+                  isShowingLiveData ? 'bg-emerald-400 opacity-75' : 'bg-amber-400 opacity-75'
                 }`}
               ></span>
               <span
                 className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
-                  isLive ? 'bg-emerald-500' : 'bg-amber-500'
+                  isShowingLiveData ? 'bg-emerald-500' : 'bg-amber-500'
                 }`}
               ></span>
             </span>
             <span className="text-xs font-semibold text-slate-200">
-              {isLive ? 'Supabase Realtime' : 'Mock Preview Mode'}
+              {isUsingMockData
+                ? 'Mock Preview Mode'
+                : isLive
+                  ? 'Supabase Live Mode'
+                  : 'Connecting to Supabase'}
             </span>
           </div>
-          <Radio className={`h-4 w-4 ${isLive ? 'text-emerald-400' : 'text-amber-400'}`} />
+          <Radio
+            className={`h-4 w-4 ${isShowingLiveData ? 'text-emerald-400' : 'text-amber-400'}`}
+          />
         </div>
 
         {/* Main Navigation Group */}
@@ -120,13 +139,13 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
               GESTION & OPERATIONS
             </div>
             <nav className="space-y-1">
-              {mainNav.map((item) => {
+              {mainNav.filter((item) => visibleTabs.includes(item.id as AdminTab)).map((item) => {
                 const Icon = item.icon
                 const isActive = activeTab === item.id
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id as any)}
+                    onClick={() => setActiveTab(item.id as AdminTab)}
                     className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all duration-200 ${
                       isActive
                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/40 translate-x-1'
@@ -161,7 +180,7 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
             </nav>
           </div>
 
-          <div>
+          {visibleTabs.includes('schema') && <div>
             <div className="px-3 pb-2 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center justify-between">
               <span>CITIZEN & PUBLIC ACCESS</span>
               <span className="flex h-2 w-2 relative">
@@ -186,20 +205,20 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
                 </div>
               </Link>
             </nav>
-          </div>
+          </div>}
 
           <div>
             <div className="px-3 pb-2 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest">
               SYSTEME & SECUTRITE
             </div>
             <nav className="space-y-1">
-              {systemNav.map((item) => {
+              {systemNav.filter((item) => visibleTabs.includes(item.id as AdminTab)).map((item) => {
                 const Icon = item.icon
                 const isActive = activeTab === item.id
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActiveTab(item.id as any)}
+                    onClick={() => setActiveTab(item.id as AdminTab)}
                     className={`w-full flex items-center justify-between px-3.5 py-3 rounded-2xl text-xs font-bold transition-all duration-200 ${
                       isActive
                         ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/40 translate-x-1'
@@ -238,13 +257,13 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
             </div>
           </div>
           <div className="mt-3 pt-2.5 border-t border-slate-800 flex flex-col gap-2">
-            <Link
+            {visibleTabs.includes('schema') && <Link
               to="/find-help"
               className="w-full py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-white text-xs font-extrabold flex items-center justify-center space-x-1.5 transition-colors border border-rose-500/30"
             >
               <HeartPulse className="h-3.5 w-3.5 text-rose-400" />
               <span>Open Citizen Portal ↗</span>
-            </Link>
+            </Link>}
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
               <div className="flex items-center space-x-1 text-emerald-400">
                 <ShieldCheck className="h-3 w-3" />

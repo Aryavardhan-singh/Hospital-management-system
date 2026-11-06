@@ -80,21 +80,21 @@ export function useAmbulanceSimulation(
 
           if (distance < ARRIVAL_THRESHOLD) {
             // Reached citizen! Snap to citizen coordinates and advance stage
-            updateAmbulance(amb.id, {
+            void updateAmbulance(amb.id, {
               lat: amb.patient_lat,
               lng: amb.patient_lng,
               dispatch_stage: 'picked_up',
               status: 'enroute',
               patient_condition: `${amb.severity?.toUpperCase() || 'Emergency'} patient on board - Transferring to ER`,
-            })
+            }).catch((error: unknown) => console.error('Ambulance movement update failed:', error))
           } else {
             // Move one step toward citizen
             const ratio = STEP_SIZE / distance
-            updateAmbulance(amb.id, {
+            void updateAmbulance(amb.id, {
               lat: amb.lat + dLat * ratio,
               lng: amb.lng + dLng * ratio,
               dispatch_stage: 'enroute_pickup',
-            })
+            }).catch((error: unknown) => console.error('Ambulance movement update failed:', error))
           }
           continue
         }
@@ -106,20 +106,20 @@ export function useAmbulanceSimulation(
 
         if (distance < ARRIVAL_THRESHOLD) {
           // Arrived — snap to hospital coordinates and mark occupied
-          updateAmbulance(amb.id, {
+          void updateAmbulance(amb.id, {
             lat: target.lat,
             lng: target.lng,
             status: 'occupied',
             dispatch_stage: 'arrived',
-          })
+          }).catch((error: unknown) => console.error('Ambulance movement update failed:', error))
         } else {
           // Move one normalised step toward hospital
           const ratio = STEP_SIZE / distance
-          updateAmbulance(amb.id, {
+          void updateAmbulance(amb.id, {
             lat: amb.lat + dLat * ratio,
             lng: amb.lng + dLng * ratio,
             dispatch_stage: amb.patient_lat != null ? 'enroute_hospital' : amb.dispatch_stage,
-          })
+          }).catch((error: unknown) => console.error('Ambulance movement update failed:', error))
         }
       }
     }, TICK_MS)
@@ -163,10 +163,13 @@ export function useAmbulanceSimulation(
 
           if (result && result.hospital.id !== hospital.id) {
             // Reroute
-            updateAmbulance(amb.id, {
+            void updateAmbulance(amb.id, {
               assigned_hospital_id: result.hospital.id,
+            }).then(() => {
+              onRerouteRef.current?.(amb.id, hospital.name, result.hospital.name)
+            }).catch((error: unknown) => {
+              console.error('Automatic ambulance reroute failed:', error)
             })
-            onRerouteRef.current?.(amb.id, hospital.name, result.hospital.name)
           }
         }
       }

@@ -101,22 +101,30 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
   // ── Dispatch handler ────────────────────────────────────────
   const handleDispatch = async (ambulanceId: string) => {
     setDispatchingId(ambulanceId)
-    const result = await dispatchAmbulance(ambulanceId)
-    setDispatchingId(null)
-
-    if (result) {
-      setLastDispatch({ ambulanceId, result })
-      pushToast(
-        'info',
-        `${ambulanceId} dispatched → ${result.hospital.name}`,
-        `Routing score: ${Math.round(result.breakdown.total * 100)}% · ${result.breakdown.distanceKm.toFixed(1)} km away`
-      )
-    } else {
+    try {
+      const result = await dispatchAmbulance(ambulanceId)
+      if (result) {
+        setLastDispatch({ ambulanceId, result })
+        pushToast(
+          'info',
+          `${ambulanceId} dispatched → ${result.hospital.name}`,
+          `Routing score: ${Math.round(result.breakdown.total * 100)}% · ${result.breakdown.distanceKm.toFixed(1)} km away`
+        )
+      } else {
+        pushToast(
+          'warning',
+          `No suitable hospital for ${ambulanceId}`,
+          'No facility currently meets the selected resource requirements.'
+        )
+      }
+    } catch (error) {
       pushToast(
         'warning',
-        `No suitable hospital for ${ambulanceId}`,
-        'No facility currently meets the selected resource requirements.'
+        `Dispatch failed for ${ambulanceId}`,
+        error instanceof Error ? error.message : String(error)
       )
+    } finally {
+      setDispatchingId(null)
     }
   }
 

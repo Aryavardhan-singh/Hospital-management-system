@@ -7,12 +7,12 @@ import {
   Circle,
 } from 'react-leaflet'
 import L from 'leaflet'
-import { supabase, isSupabaseConfigured } from '@/supabaseClient'
 import { useSupabaseData } from '@/hooks/useSupabaseData'
 import { useAmbulanceSimulation } from '@/hooks/useAmbulanceSimulation'
 import { rankHospitalsForCitizen, enrichWithRoadRoutes, CitizenHospitalResult } from '@/lib/citizenRouting'
 import { CitizenTrackingMap } from '@/components/CitizenTrackingMap'
 import { EmergencySeverity, Ambulance as AmbulanceType } from '@/types'
+import { DATA_WRITE_ERROR_EVENT } from '@/lib/dataErrors'
 import { Link } from 'react-router-dom'
 import {
   MapPin,
@@ -85,7 +85,7 @@ type GeoState = 'idle' | 'requesting' | 'granted' | 'denied' | 'manual'
 type DispatchState = 'idle' | 'dispatching' | 'done'
 
 export const PublicPage: React.FC = () => {
-  const { hospitals, ambulances, updateAmbulance } = useSupabaseData()
+  const { hospitals, ambulances, updateAmbulance, addAmbulances } = useSupabaseData()
   useAmbulanceSimulation(ambulances, hospitals, updateAmbulance)
 
   const [geoState, setGeoState] = useState<GeoState>('idle')
@@ -100,7 +100,17 @@ export const PublicPage: React.FC = () => {
 
   const [dispatchState, setDispatchState] = useState<DispatchState>('idle')
   const [dispatchedAmbulanceId, setDispatchedAmbulanceId] = useState<string | null>(null)
-  const [dispatchError, setDispatchError] = useState<string | null>(null)
+  const [dataWriteError, setDataWriteError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const handleWriteError = (event: Event) => {
+      const detail = (event as CustomEvent<{ message: string }>).detail
+      setDataWriteError(detail.message)
+    }
+
+    window.addEventListener(DATA_WRITE_ERROR_EVENT, handleWriteError)
+    return () => window.removeEventListener(DATA_WRITE_ERROR_EVENT, handleWriteError)
+  }, [])
 
   // ── Geolocation ───────────────────────────────────────────────────────────
   const requestGeo = useCallback(() => {
@@ -170,7 +180,7 @@ export const PublicPage: React.FC = () => {
     const top = results[0]
 
     setDispatchState('dispatching')
-    setDispatchError(null)
+    setDataWriteError(null)
 
     try {
       let targetAmbulanceId = ''
@@ -211,26 +221,13 @@ export const PublicPage: React.FC = () => {
           patient_condition: `${severity.toUpperCase()} Priority - Citizen Emergency Dispatch`,
         }
 
-        if (isSupabaseConfigured()) {
-          try {
-            await supabase.from('ambulances').insert({
-              id: targetAmbulanceId,
-              lat: startLat,
-              lng: startLng,
-              status: 'enroute',
-              assigned_hospital_id: top.hospital.id,
-            })
-          } catch (e) {
-            console.warn('Supabase insert:', e)
-          }
-        }
-        await updateAmbulance(targetAmbulanceId, newAmb)
+        await addAmbulances([newAmb])
       }
 
       setDispatchedAmbulanceId(targetAmbulanceId)
       setDispatchState('done')
     } catch (err: any) {
-      setDispatchError(err.message || 'Failed to dispatch ambulance. Please call emergency services.')
+      setDataWriteError(err.message || 'Failed to dispatch ambulance. Please call emergency services.')
       setDispatchState('idle')
     }
   }
@@ -281,6 +278,15 @@ export const PublicPage: React.FC = () => {
       </header>
 
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        {dataWriteError && (
+          <div
+            role="alert"
+            className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold"
+          >
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {dataWriteError}
+          </div>
+        )}
         {/* ── Hero Section ─────────────────────────────────────────────── */}
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-xs font-extrabold text-emerald-700">
@@ -604,13 +610,6 @@ export const PublicPage: React.FC = () => {
                 <strong className="text-slate-800">{results[0]?.hospital.name}</strong> — the top-recommended facility.
               </p>
             </div>
-
-            {dispatchError && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-bold">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                {dispatchError}
-              </div>
-            )}
 
             <button
               onClick={requestAmbulance}

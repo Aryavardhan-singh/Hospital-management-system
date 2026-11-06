@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { NewSidebar } from './components/NewSidebar'
 import { StickyHeader } from './components/StickyHeader'
 import { GlassmorphicBanner } from './components/GlassmorphicBanner'
@@ -9,14 +10,29 @@ import { HospitalsNetworkPage } from './pages/HospitalsNetworkPage'
 import { FleetDispatchPage } from './pages/FleetDispatchPage'
 import { HospitalPreArrivalPanel } from './components/HospitalPreArrivalPanel'
 import { AnalyticsPanel } from './components/AnalyticsPanel'
+import { HospitalBedAdjustmentPanel } from './components/HospitalBedAdjustmentPanel'
 import { SqlViewer } from './components/SqlViewer'
 import { useSupabaseData } from './hooks/useSupabaseData'
 import { useAmbulanceSimulation } from './hooks/useAmbulanceSimulation'
 import { useToasts, ToastNotifications } from './components/ToastNotifications'
+import { DATA_WRITE_ERROR_EVENT } from './lib/dataErrors'
+import { AdminRole, AdminTab, DEFAULT_ROLE_TAB, ROLE_TABS, SelectableRole } from './types/roles'
 import { Info, AlertCircle, Database } from 'lucide-react'
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'overview' | 'hospitals' | 'ambulances' | 'alerts' | 'analytics' | 'schema'>('overview')
+  const navigate = useNavigate()
+  const [activeRole, setActiveRole] = useState<AdminRole>(() => {
+    const storedRole = window.localStorage.getItem('mednet-admin-role')
+    return storedRole === 'dispatcher' || storedRole === 'er-staff' ? storedRole : 'admin'
+  })
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    const storedRole = window.localStorage.getItem('mednet-admin-role')
+    return storedRole === 'dispatcher'
+      ? 'ambulances'
+      : storedRole === 'er-staff'
+        ? 'beds'
+        : 'overview'
+  })
   const [searchTerm, setSearchTerm] = useState('')
 
   const {
@@ -24,6 +40,7 @@ export default function App() {
     ambulances,
     error,
     isLive,
+    isUsingMockData,
     isConfigured,
     isSeeding,
     refetch,
@@ -35,6 +52,34 @@ export default function App() {
 
   // ── Toast System ────────────────────────────────────────────
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts()
+
+  const visibleTabs = ROLE_TABS[activeRole]
+
+  const handleRoleChange = (role: SelectableRole) => {
+    if (role === 'citizen') {
+      navigate('/public')
+      return
+    }
+
+    window.localStorage.setItem('mednet-admin-role', role)
+    setActiveRole(role)
+    setActiveTab(DEFAULT_ROLE_TAB[role])
+  }
+
+  useEffect(() => {
+    const handleWriteError = (event: Event) => {
+      const detail = (event as CustomEvent<{ message: string }>).detail
+      pushToast('warning', 'Database write failed', detail.message)
+    }
+    window.addEventListener(DATA_WRITE_ERROR_EVENT, handleWriteError)
+    return () => window.removeEventListener(DATA_WRITE_ERROR_EVENT, handleWriteError)
+  }, [pushToast])
+
+  useEffect(() => {
+    if (!visibleTabs.includes(activeTab)) {
+      setActiveTab(DEFAULT_ROLE_TAB[activeRole])
+    }
+  }, [activeRole, activeTab, visibleTabs])
 
   const handleReroute = useCallback(
     (ambulanceId: string, fromName: string, toName: string) => {
@@ -58,12 +103,20 @@ export default function App() {
   )
 
   const handleAcceptPatient = async (ambulanceId: string) => {
-    await acceptAmbulance(ambulanceId)
-    pushToast(
-      'info',
-      `ER Accepted: ${ambulanceId}`,
-      'Emergency bay prepared and staff alerted for incoming arrival.'
-    )
+    try {
+      await acceptAmbulance(ambulanceId)
+      pushToast(
+        'info',
+        `ER Accepted: ${ambulanceId}`,
+        'Emergency bay prepared and staff alerted for incoming arrival.'
+      )
+    } catch (writeError) {
+      pushToast(
+        'warning',
+        `Could not accept ${ambulanceId}`,
+        writeError instanceof Error ? writeError.message : String(writeError)
+      )
+    }
   }
 
   const handleDivertPatient = async (
@@ -71,17 +124,26 @@ export default function App() {
     fromHospitalId: string,
     reason?: string
   ) => {
-    const result = await divertAmbulance(ambulanceId, reason)
-    if (result) {
-      const fromHospital =
-        hospitals.find((h) => h.id === fromHospitalId)?.name || 'Current Hospital'
+    try {
+      const result = await divertAmbulance(ambulanceId, reason)
+      if (result) {
+        const fromHospital =
+          hospitals.find((h) => h.id === fromHospitalId)?.name || 'Current Hospital'
+        pushToast(
+          'reroute',
+          `ER Divert: ${ambulanceId}`,
+          `Rerouted from ${fromHospital} → ${result.hospital.name}${reason ? ` (${reason})` : ''}`
+        )
+      }
+      return result
+    } catch (writeError) {
       pushToast(
-        'reroute',
-        `ER Divert: ${ambulanceId}`,
-        `Rerouted from ${fromHospital} → ${result.hospital.name}${reason ? ` (${reason})` : ''}`
+        'warning',
+        `Could not divert ${ambulanceId}`,
+        writeError instanceof Error ? writeError.message : String(writeError)
       )
+      return null
     }
-    return result
   }
 
   const incomingAlertCount = ambulances.filter(
@@ -98,6 +160,8 @@ export default function App() {
         ambulanceCount={ambulances.length}
         incomingAlertCount={incomingAlertCount}
         isLive={isLive}
+        isUsingMockData={isUsingMockData}
+        visibleTabs={visibleTabs}
       />
 
       {/* Main Fluid Content Canvas */}
@@ -110,6 +174,8 @@ export default function App() {
           isSeeding={isSeeding}
           onSeed={seedDatabase}
           onRefresh={refetch}
+          role={activeRole}
+          onRoleChange={handleRoleChange}
         />
 
         {/* Toast Notifications */}
@@ -118,30 +184,37 @@ export default function App() {
         {/* Main Body Canvas */}
         <main className="p-8 space-y-8 flex-1">
           {/* Supabase Notice Banner when credentials not set */}
-          {!isConfigured && (
+          {(!isConfigured || !isLive || isUsingMockData) && (
             <div className="p-4 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-amber-900">
               <div className="flex items-start space-x-3">
                 <Info className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-extrabold text-slate-900 text-sm">
-                    Supabase Credentials Needed for Live Database Telemetry
+                    {!isConfigured
+                      ? 'Mock Mode — Supabase Credentials Needed'
+                      : isUsingMockData
+                        ? 'Supabase Sample Data Fallback Active'
+                        : 'Supabase Live Connection Unavailable'}
                   </h4>
                   <p className="text-slate-600 mt-0.5">
-                    Currently operating in mock preview mode. Add your Supabase URL & Anon Key to{' '}
-                    <code className="text-indigo-600 font-mono font-bold bg-white px-1.5 py-0.5 rounded-lg border border-amber-200">
-                      .env.local
-                    </code>{' '}
-                    to enable real-time PostgreSQL updates.
+                    {!isConfigured
+                      ? <>Currently operating with local demo data. Add your Supabase URL &amp; Anon Key to{' '}
+                        <code className="text-indigo-600 font-mono font-bold bg-white px-1.5 py-0.5 rounded-lg border border-amber-200">
+                          .env.local
+                        </code>{' '}to enable real-time PostgreSQL updates.</>
+                      : isUsingMockData
+                        ? 'The database is configured, but one or more tables are empty or unavailable and are showing local sample data. Confirm persisted records before relying on this view.'
+                        : 'A live database connection is not confirmed. Check Supabase status before relying on data persistence.'}
                   </p>
                 </div>
               </div>
-              <button
+              {activeRole === 'admin' && <button
                 onClick={() => setActiveTab('schema')}
                 className="px-4 py-2 rounded-2xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-sm shrink-0 flex items-center space-x-1.5 border-none"
               >
                 <Database className="h-4 w-4" />
                 <span>View SQL Setup Script</span>
-              </button>
+              </button>}
             </div>
           )}
 
@@ -154,7 +227,7 @@ export default function App() {
           )}
 
           {/* TAB 1: OVERVIEW DASHBOARD */}
-          {activeTab === 'overview' && (
+          {activeRole === 'admin' && activeTab === 'overview' && (
             <div className="space-y-8">
               {/* Glassmorphic Promo Banner */}
               <GlassmorphicBanner onActionClick={seedDatabase} />
@@ -171,7 +244,9 @@ export default function App() {
                 onNavigateSql={() => setActiveTab('schema')}
                 onTestCapacity={() => {
                   if (hospitals.length > 0) {
-                    updateBedOccupancy(hospitals[0].id, 5)
+                    void updateBedOccupancy(hospitals[0].id, 5).catch((writeError: unknown) => {
+                      console.error('Quick capacity update failed:', writeError)
+                    })
                   }
                 }}
               />
@@ -179,10 +254,10 @@ export default function App() {
           )}
 
           {/* TAB 2: HOSPITALS NETWORK PAGE */}
-          {activeTab === 'hospitals' && <HospitalsNetworkPage />}
+          {activeRole === 'admin' && activeTab === 'hospitals' && <HospitalsNetworkPage />}
 
           {/* TAB 3: FLEET & DISPATCH PAGE */}
-          {activeTab === 'ambulances' && (
+          {activeRole !== 'er-staff' && activeTab === 'ambulances' && (
             <FleetDispatchPage
               hospitals={hospitals}
               ambulances={ambulances}
@@ -206,15 +281,26 @@ export default function App() {
           )}
 
           {/* TAB 5: RESPONSE ANALYTICS */}
-          {activeTab === 'analytics' && (
+          {activeRole !== 'er-staff' && activeTab === 'analytics' && (
             <AnalyticsPanel hospitals={hospitals} ambulances={ambulances} />
           )}
 
           {/* TAB 6: DATABASE SQL SETUP */}
-          {activeTab === 'schema' && (
+          {activeRole === 'admin' && activeTab === 'schema' && (
             <div className="py-4">
               <SqlViewer />
             </div>
+          )}
+
+          {activeRole === 'er-staff' && activeTab === 'beds' && (
+            <HospitalBedAdjustmentPanel
+              hospitals={hospitals}
+              onAdjust={(hospitalId, delta) => {
+                void updateBedOccupancy(hospitalId, delta).catch((writeError: unknown) => {
+                  console.error('Hospital bed adjustment failed:', writeError)
+                })
+              }}
+            />
           )}
         </main>
       </div>

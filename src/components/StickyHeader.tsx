@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Search, Bell, Database, UserCheck, Sparkles, RefreshCw, HeartPulse } from 'lucide-react'
+import { Search, Bell, Database, RefreshCw, HeartPulse, ShieldCheck } from 'lucide-react'
 import { Button } from './ui/button'
+import { ROLE_OPTIONS, SelectableRole } from '@/types/roles'
 
 interface StickyHeaderProps {
   searchTerm: string
@@ -9,6 +10,8 @@ interface StickyHeaderProps {
   isSeeding: boolean
   onSeed: () => void
   onRefresh: () => void
+  role: Exclude<SelectableRole, 'citizen'>
+  onRoleChange: (role: SelectableRole) => void
 }
 
 export const StickyHeader: React.FC<StickyHeaderProps> = ({
@@ -18,6 +21,8 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
   isSeeding,
   onSeed,
   onRefresh,
+  role,
+  onRoleChange,
 }) => {
   return (
     <header className="h-[80px] bg-white border-b border-slate-100 px-8 flex items-center justify-between sticky top-0 z-10 shadow-sm">
@@ -46,29 +51,49 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
       </div>
 
       {/* Right: Actions & User Profile */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-3">
+        <label className="hidden sm:flex items-center gap-2 h-10 px-3 rounded-2xl bg-slate-50 border border-slate-200 text-slate-500">
+          <ShieldCheck className="h-4 w-4 text-indigo-600 shrink-0" />
+          <select
+            value={role}
+            onChange={(event) => onRoleChange(event.target.value as SelectableRole)}
+            className="max-w-[190px] bg-transparent text-xs font-extrabold text-slate-800 focus:outline-none cursor-pointer"
+            aria-label="Switch demo role"
+            title="Demo role switcher; this is not authenticated access control"
+          >
+            {ROLE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
         {/* Refresh & Seed Action Buttons */}
         <Button
           variant="outline"
           size="sm"
           onClick={onRefresh}
+          title={isLive ? 'Refresh data from Supabase' : 'Refresh demo data'}
           className="h-10 rounded-2xl text-xs font-bold border-slate-200 text-slate-700 hover:bg-slate-50 space-x-1.5"
         >
           <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
           <span className="hidden sm:inline">Refresh Data</span>
         </Button>
 
-        <Button
-          onClick={onSeed}
-          disabled={isSeeding}
-          className="h-10 rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 space-x-2 px-4 border-none"
-        >
-          <Database className="h-4 w-4" />
-          <span>{isSeeding ? 'Seeding...' : 'Seed Database'}</span>
-        </Button>
+        {role === 'admin' && (
+          <Button
+            onClick={onSeed}
+            disabled={isSeeding}
+            className="h-10 rounded-2xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 space-x-2 px-4 border-none"
+          >
+            <Database className="h-4 w-4" />
+            <span>{isSeeding ? 'Seeding...' : 'Seed Database'}</span>
+          </Button>
+        )}
 
         {/* Citizen Portal Direct Navigation Link */}
-        <Link
+        {role === 'admin' && <Link
           to="/find-help"
           className="h-10 px-3.5 rounded-2xl text-xs font-extrabold bg-gradient-to-r from-rose-50 to-indigo-50 hover:from-rose-100 hover:to-indigo-100 border border-rose-200/80 text-rose-700 flex items-center space-x-2 shadow-sm transition-all hover:shadow hover:-translate-y-0.5"
           title="Open Citizen Hospital Finder & Emergency Ambulance Request"
@@ -78,12 +103,12 @@ export const StickyHeader: React.FC<StickyHeaderProps> = ({
           <span className="text-[10px] font-black uppercase px-1.5 py-0.5 bg-rose-600 text-white rounded-md">
             Emergency
           </span>
-        </Link>
+        </Link>}
 
         <div className="h-6 w-px bg-slate-200" />
 
         {/* Notifications Icon with Badge */}
-        <button className="h-10 w-10 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors relative">
+        <button aria-label="Notifications" className="h-10 w-10 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors relative">
           <Bell className="h-4 w-4" />
           <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-rose-500 border-2 border-white animate-pulse" />
         </button>
