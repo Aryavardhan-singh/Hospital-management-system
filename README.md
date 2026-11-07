@@ -1,90 +1,97 @@
-# Hospital-management-system
-MedNet Ops — a Jaipur hospital coordination prototype with bed/resource tracking, simulated dispatch and capacity rerouting, OSRM-backed route previews, a public hospital finder, and an upgraded MapLibre map in Fleet & Dispatch. React + Supabase + Leaflet + MapLibre.
----------------------------------------------------------------------------------------------------------------------------------------
-# 🏥 MedNet Ops
+# 🏥 MedNet Ops — Smart Hospital & Emergency Dispatch Management System
 
-**A hospital coordination and emergency-response prototype for Jaipur.**
-
-MedNet Ops brings hospital capacity, ambulance dispatch, ER pre-arrival coordination, analytics, and a citizen-facing hospital finder into one React dashboard. Supabase can provide persistence and realtime updates; without a live database, the app uses local demo data and simulated operations.
+MedNet Ops is a high-performance emergency response and hospital coordination system designed for Jaipur. It brings real-time hospital resource tracking, intelligent ambulance dispatching, citizen emergency requests, driver navigation terminals, and ER pre-arrival feeds into a unified web application.
 
 ---
 
-## 🚨 The Problem - THAT WE SOLVED !!
+## 🚨 Core Problem Solved
 
-During medical emergencies, every minute matters — but today's hospital and ambulance systems operate in silos:
+During critical medical emergencies, seconds matter — yet legacy infrastructure operates in disconnected silos:
+- Ambulances arrive at emergency rooms that are already at 100% capacity.
+- Patients are transported to hospitals lacking required specialists, ICUs, or ventilators.
+- No live bidirectional communication links citizen requests, ambulance telemetry, and ER staff.
+- Paramedics lack direct patient contact info and turn-by-turn navigation targets.
 
-- Ambulances can arrive at hospitals that are already at full capacity
-- Patients aren't matched to hospitals with the right specialty for their condition
-- Advance coordination depends on staff monitoring a shared dashboard rather than external paging
-- There's no city-wide, real-time view of bed availability
-
-**MedNet Ops solves this by turning a city's hospitals into one connected, intelligent network.**
-
----
-
-## ✨ Key Features
-
-### Core System
-- **Bed and resource tracking** — general-bed occupancy, total/available ICU beds, available ventilators, oxygen status, and reported available blood types per hospital
-- **Hospital network directory** — searchable, filterable list of hospitals with specialty, capacity, ICU/ventilator requirements, and oxygen-status filters
-- **Resource-aware hospital filters** — filter facilities by ICU bed or ventilator availability and oxygen status
-- **Ambulance fleet map** — Jaipur Leaflet map showing hospitals, ambulance status, and simulated movement
-- **ER pre-arrival portal** — incoming ambulance list, triage handoff, estimated arrival, accept action, and manual divert workflow
-- **Citizen tracking and triage** — severity selection and a two-stage pickup-to-hospital MapLibre tracking view with shared Street, Satellite, and 3D modes after requesting a demo ambulance
-- **OSRM road routes** — driving distance, ETA, and route geometry for citizen/ER views, with a straight-line fallback when OSRM is unavailable
-- **Response analytics** — modeled response time, network bed/ICU utilization, fleet usage, hospital occupancy comparisons, and a 24-hour dispatch-volume view
-- **Incident simulator** — demo traffic-jam zones, mass-casualty dispatch batches, and hospital capacity surges with map overlays and routing/diversion feedback
-- **Role-based dashboard views** — Admin / Network Manager, Dispatcher, Hospital ER Staff, and Public / Citizen switcher with role-filtered dashboard tabs
-- **Fleet response map (Fleet & Dispatch tab)** — MapLibre with OpenFreeMap streets, high-resolution satellite imagery, tilted 3D terrain/buildings, nearby OpenStreetMap facilities, browser GPS, OSRM routes, incident overlays, and Supabase Realtime ambulance positions; the Citizen Finder and tracking view share the same map modes
-
-### Differentiators
-- 🧠 **Smart Routing Engine** — dispatch scoring uses distance, current bed load, specialty match, and simulated congestion penalties; it excludes hospitals missing required ICU beds or ventilators. OSRM road routes power citizen-facing route/ETA displays, not dispatch scoring.
-- 🔄 **Capacity diversion** — simulated capacity thresholds can trigger automatic ambulance rerouting; ER staff can also manually accept or divert an incoming unit.
-- 📢 **In-app pre-arrival coordination** — ER staff can review incoming units and their triage information in the dashboard. This is not an external push, SMS, or paging service.
-- 🌍 **Public Citizen Portal** — users can share or enter a location, compare nearby hospitals, select triage severity, and request a simulated ambulance with a tracking view.
-
-### Interface guide
-
-- **Command Center:** network KPIs, overview charts, quick actions, and database connection/sample-data status.
-- **Hospitals:** searchable network directory, resource filters, and per-hospital detail view.
-- **Fleet & Dispatch:** map, ambulance operations, and incident simulation controls.
-- **ER Pre-Arrival Alerts:** incoming-unit triage, accept, and divert actions.
-- **Response Analytics:** modeled response and utilization metrics with occupancy and dispatch-volume charts.
-- **Citizen Finder (`/public`):** hospital recommendations, severity selection, ambulance request, and simulated route tracking.
-- **Fleet & Dispatch:** full-width emergency map with Street, Satellite, and 3D modes, facility availability details, direct rule-checked dispatch, and a live fleet monitor below. The dashboard remains at `/`.
-
-No screenshots are currently maintained in this repository; the guide above describes the implemented views rather than implying screenshot assets exist.
-
-## Quickstart
-
-1. Install dependencies with `npm install`.
-2. Optionally copy [`.env.example`](./.env.example) to `.env.local` and set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Without these values, the app runs with local demo data.
-3. For an existing Supabase project, run [`hospital_resources_migration.sql`](./hospital_resources_migration.sql) in the SQL Editor before using the new resource and ER fields. It is additive and preserves existing table data.
-4. For a disposable demo database, [`schema.sql`](./schema.sql) creates the tables and sample rows, but starts by dropping and recreating the demo tables. Do not run it against data you need to keep.
-5. Start the app with `npm run dev`. Use `npm run build` for a production build and `npm run lint` for lint checks.
-
-## Data, security, and simulation notes
-
-- Dashboard roles filter the interface only; they are not authenticated access control. Supabase RLS policies in the demo schema remain open for public read/write and are not suitable for production.
-- Supabase write errors are surfaced in the UI and do not update local state as if persistence succeeded. When credentials are absent, demo interactions are local-only.
-- Road routes use the public OSRM demo service and fall back to straight-line estimates. Traffic zones, ambulance movement, capacity incidents, and analytics are simulated; this is not a real emergency dispatch service.
-- Facility discovery uses public Overpass instances and may be unavailable or rate-limited; saved Supabase hospitals remain visible as a fallback.
-- Ambulance GPS sharing writes to Supabase only when live ambulance records are available. The driver control is not authenticated, so the demo's open RLS policies must not be used for production tracking.
-- Blood types indicate reported availability only; unit-level blood-bank quantities and stock sharing are not implemented.
+**MedNet Ops connects citizens, paramedics, hospital ER teams, and city coordinators into one synchronized, intelligent response network.**
 
 ---
 
-## 🚀 Future Roadmap
+## ✨ Key Features & Portals
 
-- Predictive bed availability using historical admission/discharge patterns
-- Unit-level blood bank inventory and stock sharing between hospitals
-- Live traffic data integration with dispatch routing
-- Authenticated users and server-enforced roles/RLS policies
-- External hospital alert delivery
+### 1. 🌍 Frictionless Citizen Emergency Portal (`/find-help` / `/public`)
+- **Instant Geolocation & Triage**: Automatic GPS location detection with manual coordinate and Jaipur-center fallbacks. Critical / Moderate / Minor triage selection.
+- **Smart Hospital Recommendations**: Ranks nearby facilities by distance, road travel time (OSRM), bed availability, and specialty match.
+- **Direct Paramedic Request**: Collects citizen phone number and landmark information for real-time driver contact.
+- **Reverse Geocoding**: Automatically translates latitude/longitude into human-friendly street addresses via Nominatim.
+- **Live 2-Stage Interactive Tracking**: Street, Satellite, and 3D map views tracking the assigned ambulance from dispatch to patient pickup, and onward to the ER.
+- **Cancellation & Safety**: One-tap request cancellation with automated vehicle and bed release. Direct hotline links for **108 (Ambulance)**, **100 (Police)**, and **101 (Fire)**.
+
+### 2. 🚑 Ambulance Driver Portal (`/driver`)
+- **Driver Profile Authentication**: Persistent driver profile selection linking staff to vehicles (e.g., *Rajesh Meena [EMS-JP-409] -> Unit AMB-101*).
+- **Active Trip Terminal**: Real-time pickup coordinates with one-tap **"Open in Google Maps ↗"** turn-by-turn navigation.
+- **Direct Patient Contact**: Call the patient or caller directly with one click.
+- **Patient Vitals Telemetry**: Toggle real-time acuity tags (`Cardiac`, `Breathing Difficulty`, `Severe Trauma`, `Unconscious`) that broadcast directly to the receiving hospital ER.
+- **Trip Lifecycle & History**: Step-by-step dispatch workflow (`Confirm Patient Picked Up` -> `Complete Run & Arrive at ER`) and past trip audit logs.
+
+### 3. 🏥 Hospital ER Pre-Arrival Portal (`/hospital`)
+- **Incoming Ambulance Radar**: Live inbound vehicle feeds filtered by hospital facility with arrival ETAs and triage priority.
+- **Live Vitals Warning Badges**: Real-time broadcast alerts of in-transit patient vitals and pickup street addresses.
+- **Capacity Control**: Instant 1-tap ER `Accept` or `Divert` protocols with permanent audit logging.
+- **Shift Activity Log**: Historical tracking of bed count adjustments, admissions, and diverts.
+
+### 4. 🎛️ Command Center & Operations Dashboard (`/`)
+- **Network Overview**: Citywide KPIs for available general beds, ICU beds, ventilators, and fleet utilization.
+- **Streamlined Header & Navigation**: Clean access controls with a consolidated **Preferences & Tools** popover (Language switcher, Theme mode, PWA update, DB seed).
+- **Hospitals Network Directory**: Searchable, filterable database by ICU, ventilator availability, oxygen status, and medical specialties.
+- **Fleet Dispatch & 3D Emergency Map**: Full-width MapLibre map with Street, Satellite, and 3D terrain/building extrusion layers, traffic congestion zones, and incident simulation.
+- **Bed Reservation Locking**: When an ambulance is dispatched for a critical patient, an ICU bed is automatically reserved in the database to prevent overbooking across the network.
+- **Fleet Facility Re-assignment**: One-tap facility re-routing if an enroute ambulance encounters an issue.
 
 ---
 
-## 👥 Team
+## 🌐 Multi-Language, Offline & PWA Support
+- **Full Bilingual Localization**: Instant English (`en`) and Hindi (`hi`) switching across all interfaces with persistence.
+- **Progressive Web App (PWA)**: Installable on mobile and desktop devices with offline caching and service worker updates.
+- **Offline Resilient**: Local state fallbacks and IndexedDB queuing ensure continuous operation even during connectivity loss.
 
-- ARYAVARDHAN SINGH
-- PAARTH
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 19, TypeScript, Tailwind CSS, Vite
+- **Mapping & GIS**: MapLibre GL JS, Leaflet, Three.js, OSRM (Open Source Routing Machine), OpenStreetMap Nominatim
+- **State & Realtime**: Supabase (PostgreSQL, Realtime subscriptions, Row-Level Security)
+- **Internationalization**: i18next & react-i18next
+- **Testing**: Vitest, React Testing Library, JSDOM
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone & Install Dependencies
+```bash
+git clone https://github.com/Aryavardhan-singh/Hospital-management-system.git
+cd Hospital-management-system
+npm install
+```
+
+### 2. Configure Environment (Optional)
+Copy `.env.example` to `.env.local` to connect to Supabase:
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+*(If no Supabase credentials are provided, MedNet Ops runs in full demo mode with local mock data).*
+
+### 3. Run Development Server
+```bash
+npm run dev
+```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+### 4. Build & Test
+```bash
+npm run build   # Production bundle with Vite & TypeScript check
+npm run lint    # Code linting
+npm run test    # Automated unit and component test suite
+```
