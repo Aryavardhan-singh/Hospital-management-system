@@ -17,9 +17,9 @@ export const HospitalBedAdjustmentPanel: React.FC<HospitalBedAdjustmentPanelProp
         <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
           <Building2 className="h-5 w-5" />
         </div>
-        <h2 className="text-xl font-black text-slate-900 tracking-tight">Hospital Bed Adjustments</h2>
+        <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Hospital Bed Adjustments</h2>
       </div>
-      <p className="text-xs font-semibold text-slate-500 mt-1">
+      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
         Update occupied general bed counts for your network.
       </p>
     </div>
@@ -30,17 +30,17 @@ export const HospitalBedAdjustmentPanel: React.FC<HospitalBedAdjustmentPanelProp
         return (
           <section
             key={hospital.id}
-            className="bg-white rounded-[1.75rem] p-5 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]"
+            className="bg-white dark:bg-slate-900 rounded-[1.75rem] p-5 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none"
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-sm font-extrabold text-slate-900">{hospital.name}</h3>
-                <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 mt-2">
+                <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">{hospital.name}</h3>
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mt-2">
                   <Activity className="h-3.5 w-3.5 text-indigo-500" />
                   {available} available · {hospital.occupied_beds}/{hospital.total_beds} occupied
                 </p>
               </div>
-              <span className="px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-extrabold uppercase">
+              <span className="px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 text-indigo-700 dark:text-indigo-400 text-[10px] font-extrabold uppercase">
                 ER Staff
               </span>
             </div>

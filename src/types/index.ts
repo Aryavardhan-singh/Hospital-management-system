@@ -9,6 +9,7 @@ export interface Hospital {
   icu_occupied: number
   icuBedsTotal: number
   icuBedsAvailable: number
+  reserved_icu_beds?: number
   ventilatorsAvailable: number
   oxygenStatus: 'sufficient' | 'low' | 'critical'
   bloodTypesAvailable?: string[]

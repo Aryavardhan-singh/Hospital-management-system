@@ -33,7 +33,7 @@ interface HospitalDetailModalProps {
 export const HospitalDetailModal: React.FC<HospitalDetailModalProps> = ({
   hospital,
   ambulances,
-  isLive,
+  isLive: _isLive,
   onClose,
   onUpdateOccupancy,
   onCapacityCrisis,
@@ -59,30 +59,26 @@ export const HospitalDetailModal: React.FC<HospitalDetailModalProps> = ({
 
   let statusBadgeBg = 'bg-emerald-50 text-emerald-700 border-emerald-200'
   let statusText = 'NORMAL'
-  let barColor = 'bg-emerald-500'
-
   if (occupancyRate > 90) {
     statusBadgeBg = 'bg-rose-50 text-rose-700 border-rose-200 animate-pulse'
     statusText = 'CRITICAL (>90%)'
-    barColor = 'bg-rose-500'
   } else if (occupancyRate >= 70) {
     statusBadgeBg = 'bg-amber-50 text-amber-700 border-amber-200'
     statusText = 'BUSY (70-90%)'
-    barColor = 'bg-amber-500'
   }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 select-none">
-      <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Top Header */}
-        <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/50 flex items-start justify-between">
+        <div className="p-6 md:p-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-start justify-between">
           <div className="flex items-start space-x-4">
             <div className="h-12 w-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-600/30 shrink-0">
               <Building2 className="h-6 w-6" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
                   {hospital.name}
                 </h2>
                 <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase border ${statusBadgeBg}`}>
@@ -100,7 +96,7 @@ export const HospitalDetailModal: React.FC<HospitalDetailModalProps> = ({
 
           <button
             onClick={onClose}
-            className="h-10 w-10 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-slate-900 hover:bg-slate-100 flex items-center justify-center transition-colors shrink-0"
+            className="h-10 w-10 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors shrink-0"
           >
             <X className="h-5 w-5" />
           </button>

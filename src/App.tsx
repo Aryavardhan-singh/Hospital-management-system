@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { NewSidebar } from './components/NewSidebar'
 import { StickyHeader } from './components/StickyHeader'
@@ -6,18 +6,34 @@ import { GlassmorphicBanner } from './components/GlassmorphicBanner'
 import { KpiRow } from './components/KpiRow'
 import { AnalyticsGrid } from './components/AnalyticsGrid'
 import { QuickActionsGrid } from './components/QuickActionsGrid'
-import { HospitalsNetworkPage } from './pages/HospitalsNetworkPage'
-import { FleetDispatchPage } from './pages/FleetDispatchPage'
-import { HospitalPreArrivalPanel } from './components/HospitalPreArrivalPanel'
-import { AnalyticsPanel } from './components/AnalyticsPanel'
-import { HospitalBedAdjustmentPanel } from './components/HospitalBedAdjustmentPanel'
-import { SqlViewer } from './components/SqlViewer'
 import { useSupabaseData } from './hooks/useSupabaseData'
 import { useAmbulanceSimulation } from './hooks/useAmbulanceSimulation'
-import { useToasts, ToastNotifications } from './components/ToastNotifications'
+import { ToastNotifications } from './components/ToastNotifications'
+import { OfflineBanner } from './components/OfflineBanner'
+import { useToasts } from './hooks/useToasts'
+import { useNetworkStatus } from './hooks/useNetworkStatus'
 import { DATA_WRITE_ERROR_EVENT } from './lib/dataErrors'
 import { AdminRole, AdminTab, DEFAULT_ROLE_TAB, ROLE_TABS, SelectableRole } from './types/roles'
 import { Info, AlertCircle, Database } from 'lucide-react'
+
+const HospitalsNetworkPage = lazy(() =>
+  import('./pages/HospitalsNetworkPage').then(({ HospitalsNetworkPage }) => ({ default: HospitalsNetworkPage }))
+)
+const FleetDispatchPage = lazy(() =>
+  import('./pages/FleetDispatchPage').then(({ FleetDispatchPage }) => ({ default: FleetDispatchPage }))
+)
+const HospitalPreArrivalPanel = lazy(() =>
+  import('./components/HospitalPreArrivalPanel').then(({ HospitalPreArrivalPanel }) => ({ default: HospitalPreArrivalPanel }))
+)
+const AnalyticsPanel = lazy(() =>
+  import('./components/AnalyticsPanel').then(({ AnalyticsPanel }) => ({ default: AnalyticsPanel }))
+)
+const HospitalBedAdjustmentPanel = lazy(() =>
+  import('./components/HospitalBedAdjustmentPanel').then(({ HospitalBedAdjustmentPanel }) => ({ default: HospitalBedAdjustmentPanel }))
+)
+const SqlViewer = lazy(() =>
+  import('./components/SqlViewer').then(({ SqlViewer }) => ({ default: SqlViewer }))
+)
 
 export default function App() {
   const navigate = useNavigate()
@@ -43,6 +59,9 @@ export default function App() {
     isUsingMockData,
     isConfigured,
     isSeeding,
+    queuedCount,
+    isSyncing,
+    flushOfflineQueue,
     refetch,
     seedDatabase,
     addAmbulances,
@@ -52,6 +71,7 @@ export default function App() {
 
   // ── Toast System ────────────────────────────────────────────
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts()
+  const { isOnline } = useNetworkStatus()
 
   const visibleTabs = ROLE_TABS[activeRole]
 
@@ -74,12 +94,6 @@ export default function App() {
     window.addEventListener(DATA_WRITE_ERROR_EVENT, handleWriteError)
     return () => window.removeEventListener(DATA_WRITE_ERROR_EVENT, handleWriteError)
   }, [pushToast])
-
-  useEffect(() => {
-    if (!visibleTabs.includes(activeTab)) {
-      setActiveTab(DEFAULT_ROLE_TAB[activeRole])
-    }
-  }, [activeRole, activeTab, visibleTabs])
 
   const handleReroute = useCallback(
     (ambulanceId: string, fromName: string, toName: string) => {
@@ -151,7 +165,7 @@ export default function App() {
   ).length
 
   return (
-    <div className="flex h-screen w-screen bg-[#f8fafc] text-slate-800 overflow-hidden font-sans">
+    <div className="flex h-screen w-screen bg-[#f8fafc] dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 overflow-hidden font-sans">
       {/* 280px Fixed Dark Navy Sidebar */}
       <NewSidebar
         activeTab={activeTab}
@@ -165,7 +179,15 @@ export default function App() {
       />
 
       {/* Main Fluid Content Canvas */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#f8fafc]">
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto bg-[#f8fafc] dark:bg-[#0b0f19]">
+        {/* Offline & Sync Notification Banner */}
+        <OfflineBanner
+          isOnline={isOnline}
+          queuedCount={queuedCount}
+          isSyncing={isSyncing}
+          onSyncNow={flushOfflineQueue}
+        />
+
         {/* Sticky 80px White Header */}
         <StickyHeader
           searchTerm={searchTerm}
@@ -183,6 +205,7 @@ export default function App() {
 
         {/* Main Body Canvas */}
         <main className="p-8 space-y-8 flex-1">
+          <Suspense fallback={<div className="min-h-32 flex items-center justify-center text-sm font-semibold text-slate-500" role="status">Loading view...</div>}>
           {/* Supabase Notice Banner when credentials not set */}
           {(!isConfigured || !isLive || isUsingMockData) && (
             <div className="p-4 rounded-3xl bg-amber-500/10 border border-amber-500/20 text-xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-amber-900">
@@ -261,6 +284,9 @@ export default function App() {
             <FleetDispatchPage
               hospitals={hospitals}
               ambulances={ambulances}
+              isConfigured={isConfigured}
+              isLive={isLive}
+              isUsingMockData={isUsingMockData}
               isSeeding={isSeeding}
               refetch={refetch}
               seedDatabase={seedDatabase}
@@ -302,6 +328,7 @@ export default function App() {
               }}
             />
           )}
+          </Suspense>
         </main>
       </div>
     </div>

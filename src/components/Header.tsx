@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button } from './ui/button'
-import { Database, RefreshCw, Activity, AlertTriangle } from 'lucide-react'
+import { Database, RefreshCw } from 'lucide-react'
 import { Hospital, Ambulance, getCapacityLevel } from '@/types'
 
 interface HeaderProps {
@@ -17,7 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   hospitals,
   ambulances,
   isLive,
-  isConfigured,
+  isConfigured: _isConfigured,
   isSeeding,
   onSeed,
   onRefresh,

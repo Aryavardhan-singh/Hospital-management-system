@@ -19,14 +19,14 @@ export const SqlViewer: React.FC = () => {
   }
 
   return (
-    <Card className="max-w-4xl mx-auto rounded-[2.5rem] p-4 bg-white border-slate-100 shadow-xl">
+    <Card className="max-w-4xl mx-auto rounded-[2.5rem] p-4 bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 shadow-xl">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <div className="flex items-center space-x-3">
           <div className="h-10 w-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
             <Terminal className="h-5 w-5" />
           </div>
           <div>
-            <CardTitle className="text-base font-extrabold text-slate-900">
+            <CardTitle className="text-base font-extrabold text-slate-900 dark:text-white">
               schema.sql (Supabase Setup Script)
             </CardTitle>
             <p className="text-xs text-slate-400 font-semibold mt-0.5">
@@ -57,7 +57,7 @@ export const SqlViewer: React.FC = () => {
           This setup script drops and recreates the demo tables. Use it only when replacing existing demo data.
           For an existing database, apply <code className="font-mono font-bold">hospital_resources_migration.sql</code> instead.
         </div>
-        <div className="mb-4 p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs text-slate-600">
+        <div className="mb-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
           <span>
             Need help? Paste this SQL script into your{' '}
             <a

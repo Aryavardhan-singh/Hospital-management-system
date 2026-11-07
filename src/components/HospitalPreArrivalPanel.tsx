@@ -157,14 +157,14 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">
+              <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">
                 Hospital ER Pre-Arrival Portal
               </h2>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200 uppercase">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200 dark:border-rose-900 uppercase">
                 Emergency Telemetry
               </span>
             </div>
-            <p className="text-xs font-semibold text-slate-500 mt-0.5">
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
               Live incoming fleet notifications, clinical triage handoffs, and instant diversion protocols
             </p>
           </div>
@@ -172,7 +172,7 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
 
         {/* Hospital Selector (if not locked in modal) */}
         {!isEmbedded && (
-          <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200/80 rounded-2xl px-3.5 py-2 text-xs shrink-0">
+          <div className="flex items-center space-x-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700 rounded-2xl px-3.5 py-2 text-xs shrink-0">
             <Filter className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
             <span className="text-slate-400 font-extrabold uppercase text-[10px]">Hospital:</span>
             <select
@@ -180,7 +180,7 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
               onChange={(e) =>
                 handleHospitalChange(e.target.value === 'all' ? null : e.target.value)
               }
-              className="bg-transparent text-slate-800 font-bold focus:outline-none cursor-pointer pr-2"
+              className="bg-transparent text-slate-800 dark:text-slate-100 font-bold focus:outline-none cursor-pointer pr-2"
             >
               <option value="all">All Hospitals Network ({hospitals.length})</option>
               {hospitals.map((h) => (
@@ -196,12 +196,12 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
       {/* ── Summary KPI Tiles ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Total Incoming */}
-        <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
           <div>
             <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
               INCOMING FLEET
             </div>
-            <div className="text-2xl font-black text-slate-900 mt-0.5 font-mono">
+            <div className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">
               {incomingAmbulances.length}
             </div>
           </div>
@@ -211,7 +211,7 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
         </div>
 
         {/* Pending Triage Approval */}
-        <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
           <div>
             <div className="text-[10px] font-extrabold uppercase text-amber-500 tracking-wider flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
@@ -227,7 +227,7 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
         </div>
 
         {/* Pre-Accepted ER Beds */}
-        <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
           <div>
             <div className="text-[10px] font-extrabold uppercase text-emerald-600 tracking-wider">
               ER ACCEPTED
@@ -242,7 +242,7 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
         </div>
 
         {/* Diverted / Rerouted */}
-        <div className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between">
           <div>
             <div className="text-[10px] font-extrabold uppercase text-purple-600 tracking-wider">
               DIVERTED UNITS
@@ -262,7 +262,7 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-rose-600" />
-            <h3 className="text-sm font-extrabold text-slate-900 uppercase tracking-wider">
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
               Incoming Fleet Telemetry &amp; ER Bays
             </h3>
           </div>
@@ -319,7 +319,7 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
               return (
                 <div
                   key={amb.id}
-                  className={`bg-white rounded-3xl p-5 border shadow-sm transition-all duration-200 ${cardBorder}`}
+                  className={`bg-white dark:bg-slate-900 rounded-3xl p-5 border dark:border-slate-800 shadow-sm transition-all duration-200 ${cardBorder}`}
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     {/* Left details */}
@@ -328,7 +328,7 @@ export const HospitalPreArrivalPanel: React.FC<HospitalPreArrivalPanelProps> = (
                         <div className="h-9 w-9 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0 border border-indigo-100">
                           <Truck className="h-4.5 w-4.5" />
                         </div>
-                        <span className="text-base font-black text-slate-900 tracking-tight font-mono">
+                        <span className="text-base font-black text-slate-900 dark:text-white tracking-tight font-mono">
                           {amb.id}
                         </span>
 

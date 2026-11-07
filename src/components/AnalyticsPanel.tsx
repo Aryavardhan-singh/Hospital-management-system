@@ -62,9 +62,9 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ hospitals, ambul
           <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
             <Activity className="h-5 w-5" />
           </div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight">Response Analytics</h2>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">Response Analytics</h2>
         </div>
-        <p className="text-xs font-semibold text-slate-500 mt-1">
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
           Network capacity, modeled response estimates, and fleet activity
         </p>
       </div>
@@ -105,11 +105,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ hospitals, ambul
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <section className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+        <section className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none">
           <div className="flex items-start justify-between gap-3 mb-5">
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900">Hospital Occupancy Comparison</h3>
-              <p className="text-xs text-slate-400 mt-1">Occupied general beds by facility</p>
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">Hospital Occupancy Comparison</h3>
+              <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">Occupied general beds by facility</p>
             </div>
             <Building2 className="h-4 w-4 text-indigo-500 shrink-0" />
           </div>
@@ -121,11 +121,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ hospitals, ambul
               return (
                 <div key={hospital.id}>
                   <div className="flex items-center justify-between gap-3 text-xs mb-1.5">
-                    <span className="font-bold text-slate-700 truncate">{hospital.name}</span>
-                    <span className="font-mono font-extrabold text-slate-800 shrink-0">{utilization}%</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-200 truncate">{hospital.name}</span>
+                    <span className="font-mono font-extrabold text-slate-800 dark:text-slate-100 shrink-0">{utilization}%</span>
                   </div>
                   <div
-                    className="h-2.5 rounded-full bg-slate-100 overflow-hidden"
+                    className="h-2.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"
                     role="meter"
                     aria-label={`${hospital.name} bed utilization`}
                     aria-valuemin={0}
@@ -143,11 +143,11 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ hospitals, ambul
           </div>
         </section>
 
-        <section className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+        <section className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none">
           <div className="flex items-start justify-between gap-3 mb-5">
             <div>
-              <h3 className="text-sm font-extrabold text-slate-900">24-Hour Fleet Dispatch Volume</h3>
-              <p className="text-xs text-slate-400 mt-1">
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">24-Hour Fleet Dispatch Volume</h3>
+              <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">
                 {ambulances.some((ambulance) => ambulance.created_at)
                   ? 'Recorded ambulance entries by hour'
                   : 'Simulated preview until dispatch timestamps are available'}
@@ -155,13 +155,13 @@ export const AnalyticsPanel: React.FC<AnalyticsPanelProps> = ({ hospitals, ambul
             </div>
             <Truck className="h-4 w-4 text-indigo-500 shrink-0" />
           </div>
-          <div className="h-56 flex items-end gap-1.5 border-b border-slate-100 pb-2" role="img" aria-label="Bar chart showing dispatch volume over the last 24 hours">
+          <div className="h-56 flex items-end gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-2" role="img" aria-label="Bar chart showing dispatch volume over the last 24 hours">
             {dispatchVolumes.map((volume, index) => (
               <div key={index} className="h-full flex-1 flex flex-col justify-end items-center gap-1 group">
                 <span className="text-[9px] text-slate-400 opacity-0 group-hover:opacity-100">{volume}</span>
                 <div
                   className={`w-full max-w-5 rounded-t-md transition-all ${
-                    volume > 0 ? 'bg-indigo-500 group-hover:bg-indigo-600' : 'bg-slate-100'
+                    volume > 0 ? 'bg-indigo-500 group-hover:bg-indigo-600' : 'bg-slate-100 dark:bg-slate-800'
                   }`}
                   style={{ height: `${Math.max(4, (volume / maxVolume) * 85)}%` }}
                   title={`${volume} dispatch${volume === 1 ? '' : 'es'}`}
@@ -191,19 +191,19 @@ interface MetricCardProps {
 }
 
 const METRIC_COLORS: Record<MetricCardProps['color'], string> = {
-  indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
-  blue: 'bg-blue-50 text-blue-600 border-blue-100',
-  rose: 'bg-rose-50 text-rose-600 border-rose-100',
-  emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+  indigo: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border-indigo-100 dark:border-indigo-900/50',
+  blue: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-100 dark:border-blue-900/50',
+  rose: 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-900/50',
+  emerald: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/50',
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({ icon, label, value, detail, color }) => (
-  <section className="bg-white rounded-[1.75rem] p-5 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)]">
+  <section className="bg-white dark:bg-slate-900 rounded-[1.75rem] p-5 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none">
     <div className={`h-10 w-10 rounded-xl border flex items-center justify-center ${METRIC_COLORS[color]}`}>
       {icon}
     </div>
     <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mt-4">{label}</p>
-    <p className="text-2xl font-black text-slate-900 mt-1">{value}</p>
-    <p className="text-[11px] font-semibold text-slate-500 mt-1">{detail}</p>
+    <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{value}</p>
+    <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1">{detail}</p>
   </section>
 )

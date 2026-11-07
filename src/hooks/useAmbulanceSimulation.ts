@@ -211,6 +211,35 @@ export function useAmbulanceSimulation(
     [updateAmbulance, requiredSpecialty]
   )
 
+  const dispatchAmbulanceToHospital = useCallback(
+    async (ambulanceId: string, hospitalId: string): Promise<RoutingResult | null> => {
+      const ambulance = ambulancesRef.current.find((item) => item.id === ambulanceId)
+      const hospital = hospitalsRef.current.find((item) => item.id === hospitalId)
+      if (!ambulance || ambulance.status !== 'idle' || !hospital) return null
+
+      const result = findBestHospital(
+        ambulance,
+        [hospital],
+        requiredSpecialty,
+        ambulance.severity,
+        routingOptionsRef.current
+      )
+      if (!result || result.breakdown.resourceExcluded || result.breakdown.excluded) return null
+
+      await updateAmbulance(ambulanceId, {
+        status: 'enroute',
+        assigned_hospital_id: hospital.id,
+        er_status: 'pending',
+        erStatus: 'pending',
+        patient_condition: 'Emergency patient en route - Triage evaluation pending',
+        triage_level: 'urgent',
+      })
+
+      return result
+    },
+    [updateAmbulance, requiredSpecialty]
+  )
+
   // ── Manual ER Divert ─────────────────────────────────────────────────────
   /**
    * Manually divert an active/incoming ambulance to the next best available hospital.
@@ -272,5 +301,5 @@ export function useAmbulanceSimulation(
     [updateAmbulance]
   )
 
-  return { dispatchAmbulance, divertAmbulance, acceptAmbulance }
+  return { dispatchAmbulance, dispatchAmbulanceToHospital, divertAmbulance, acceptAmbulance }
 }

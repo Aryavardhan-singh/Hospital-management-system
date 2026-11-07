@@ -85,7 +85,7 @@ export const KpiRow: React.FC<KpiRowProps> = ({ hospitals, ambulances }) => {
         return (
           <div
             key={index}
-            className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_12px_30px_-6px_rgba(0,0,0,0.08)] transition-all duration-300 flex flex-col justify-between group"
+            className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_12px_30px_-6px_rgba(0,0,0,0.08)] transition-all duration-300 flex flex-col justify-between group"
           >
             <div>
               {/* Header: Icon & Change Badge */}
@@ -111,19 +111,19 @@ export const KpiRow: React.FC<KpiRowProps> = ({ hospitals, ambulances }) => {
               </div>
 
               {/* Label & Value */}
-              <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">
+              <div className="text-[10px] font-extrabold uppercase text-slate-400 dark:text-slate-500 tracking-wider">
                 {kpi.label}
               </div>
-              <div className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight mt-1">
+              <div className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight mt-1">
                 {kpi.value}
               </div>
-              <div className="text-[11px] font-bold text-slate-400 mt-0.5">
+              <div className="text-[11px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">
                 {kpi.subtext}
               </div>
             </div>
 
             {/* Bottom Sparkline SVG Graph */}
-            <div className="mt-4 pt-2 border-t border-slate-50 flex items-center justify-between">
+            <div className="mt-4 pt-2 border-t border-slate-50 dark:border-slate-800/60 flex items-center justify-between">
               <svg className="w-full h-8 overflow-visible" viewBox="0 0 120 35">
                 <path
                   d={kpi.sparklinePath}

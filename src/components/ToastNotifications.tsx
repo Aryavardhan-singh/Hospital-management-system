@@ -1,38 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState } from 'react'
 import { AlertTriangle, ArrowRightLeft, Info, X } from 'lucide-react'
-
-// ─────────────────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────────────────
-
-export type ToastType = 'reroute' | 'warning' | 'info'
-
-export interface Toast {
-  id: string
-  type: ToastType
-  message: string
-  sub?: string
-  createdAt: number
-}
-
-// ─────────────────────────────────────────────────────────────
-// Hook to manage toast state (use in parent, pass push down)
-// ─────────────────────────────────────────────────────────────
-
-export function useToasts() {
-  const [toasts, setToasts] = useState<Toast[]>([])
-
-  const push = useCallback((type: ToastType, message: string, sub?: string) => {
-    const id = Math.random().toString(36).slice(2)
-    setToasts((prev) => [...prev, { id, type, message, sub, createdAt: Date.now() }])
-  }, [])
-
-  const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
-  }, [])
-
-  return { toasts, push, dismiss }
-}
+import type { Toast } from '@/hooks/useToasts'
 
 // ─────────────────────────────────────────────────────────────
 // Individual Toast item

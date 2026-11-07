@@ -1,5 +1,5 @@
 # Hospital-management-system
-MedNet Ops — a Jaipur hospital coordination prototype with bed/resource tracking, simulated dispatch and capacity rerouting, OSRM-backed citizen route previews, and a public hospital finder. React + Supabase + Leaflet.
+MedNet Ops — a Jaipur hospital coordination prototype with bed/resource tracking, simulated dispatch and capacity rerouting, OSRM-backed route previews, a public hospital finder, and an upgraded MapLibre map in Fleet & Dispatch. React + Supabase + Leaflet + MapLibre.
 ---------------------------------------------------------------------------------------------------------------------------------------
 # 🏥 MedNet Ops
 
@@ -30,11 +30,12 @@ During medical emergencies, every minute matters — but today's hospital and am
 - **Resource-aware hospital filters** — filter facilities by ICU bed or ventilator availability and oxygen status
 - **Ambulance fleet map** — Jaipur Leaflet map showing hospitals, ambulance status, and simulated movement
 - **ER pre-arrival portal** — incoming ambulance list, triage handoff, estimated arrival, accept action, and manual divert workflow
-- **Citizen tracking and triage** — severity selection and a two-stage pickup-to-hospital tracking view after requesting a demo ambulance
+- **Citizen tracking and triage** — severity selection and a two-stage pickup-to-hospital MapLibre tracking view with shared Street, Satellite, and 3D modes after requesting a demo ambulance
 - **OSRM road routes** — driving distance, ETA, and route geometry for citizen/ER views, with a straight-line fallback when OSRM is unavailable
 - **Response analytics** — modeled response time, network bed/ICU utilization, fleet usage, hospital occupancy comparisons, and a 24-hour dispatch-volume view
 - **Incident simulator** — demo traffic-jam zones, mass-casualty dispatch batches, and hospital capacity surges with map overlays and routing/diversion feedback
 - **Role-based dashboard views** — Admin / Network Manager, Dispatcher, Hospital ER Staff, and Public / Citizen switcher with role-filtered dashboard tabs
+- **Fleet response map (Fleet & Dispatch tab)** — MapLibre with OpenFreeMap streets, high-resolution satellite imagery, tilted 3D terrain/buildings, nearby OpenStreetMap facilities, browser GPS, OSRM routes, incident overlays, and Supabase Realtime ambulance positions; the Citizen Finder and tracking view share the same map modes
 
 ### Differentiators
 - 🧠 **Smart Routing Engine** — dispatch scoring uses distance, current bed load, specialty match, and simulated congestion penalties; it excludes hospitals missing required ICU beds or ventilators. OSRM road routes power citizen-facing route/ETA displays, not dispatch scoring.
@@ -50,6 +51,7 @@ During medical emergencies, every minute matters — but today's hospital and am
 - **ER Pre-Arrival Alerts:** incoming-unit triage, accept, and divert actions.
 - **Response Analytics:** modeled response and utilization metrics with occupancy and dispatch-volume charts.
 - **Citizen Finder (`/public`):** hospital recommendations, severity selection, ambulance request, and simulated route tracking.
+- **Fleet & Dispatch:** full-width emergency map with Street, Satellite, and 3D modes, facility availability details, direct rule-checked dispatch, and a live fleet monitor below. The dashboard remains at `/`.
 
 No screenshots are currently maintained in this repository; the guide above describes the implemented views rather than implying screenshot assets exist.
 
@@ -66,6 +68,8 @@ No screenshots are currently maintained in this repository; the guide above desc
 - Dashboard roles filter the interface only; they are not authenticated access control. Supabase RLS policies in the demo schema remain open for public read/write and are not suitable for production.
 - Supabase write errors are surfaced in the UI and do not update local state as if persistence succeeded. When credentials are absent, demo interactions are local-only.
 - Road routes use the public OSRM demo service and fall back to straight-line estimates. Traffic zones, ambulance movement, capacity incidents, and analytics are simulated; this is not a real emergency dispatch service.
+- Facility discovery uses public Overpass instances and may be unavailable or rate-limited; saved Supabase hospitals remain visible as a fallback.
+- Ambulance GPS sharing writes to Supabase only when live ambulance records are available. The driver control is not authenticated, so the demo's open RLS policies must not be used for production tracking.
 - Blood types indicate reported availability only; unit-level blood-bank quantities and stock sharing are not implemented.
 
 ---

@@ -1,14 +1,17 @@
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { lazy, useState, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAmbulanceSimulation } from '@/hooks/useAmbulanceSimulation'
-import { useToasts, ToastNotifications } from '@/components/ToastNotifications'
+import { ToastNotifications } from '@/components/ToastNotifications'
+import { useToasts } from '@/hooks/useToasts'
 import { RoutingScoreCard } from '@/components/RoutingScoreCard'
-import { DispatchMap } from '@/components/DispatchMap'
 import { IncidentHotspot } from '@/components/DispatchMap'
 import { IncidentSimulationControls } from '@/components/IncidentSimulationControls'
 import { CongestionZone, distanceKm, findBestHospital, RoutingResult } from '@/lib/routing'
 import { Ambulance, Hospital } from '@/types'
 import { Truck, Navigation, Building2, Radio, MapPin, RefreshCw, Database, Zap, Brain, Activity } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+
+const EmergencyMap = lazy(() => import('@/components/EmergencyMap.jsx'))
 
 const TRAFFIC_JAM_ZONES: CongestionZone[] = [
   { id: 'traffic-walled-city', name: 'Walled City', lat: 26.9238, lng: 75.8267, radiusKm: 1.4, delayMultiplier: 2.8 },
@@ -28,6 +31,9 @@ const MCI_REQUEST_LOCATIONS: [number, number][] = [
 interface FleetDispatchPageProps {
   hospitals: Hospital[]
   ambulances: Ambulance[]
+  isConfigured: boolean
+  isLive: boolean
+  isUsingMockData: boolean
   isSeeding: boolean
   refetch: () => Promise<void>
   seedDatabase: () => Promise<void>
@@ -39,6 +45,9 @@ interface FleetDispatchPageProps {
 export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
   hospitals,
   ambulances,
+  isConfigured,
+  isLive,
+  isUsingMockData,
   isSeeding,
   refetch,
   seedDatabase,
@@ -46,6 +55,7 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
   addAmbulances,
   updateBedOccupancy,
 }) => {
+  const { t } = useTranslation()
 
   // ── Toast System ────────────────────────────────────────────
   const { toasts, push: pushToast, dismiss: dismissToast } = useToasts()
@@ -82,7 +92,7 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
     result: RoutingResult
   } | null>(null)
 
-  const { dispatchAmbulance } = useAmbulanceSimulation(
+  const { dispatchAmbulance, dispatchAmbulanceToHospital } = useAmbulanceSimulation(
     ambulances,
     hospitals,
     updateAmbulance,
@@ -99,10 +109,12 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
   const activeCount   = enrouteCount + occupiedCount
 
   // ── Dispatch handler ────────────────────────────────────────
-  const handleDispatch = async (ambulanceId: string) => {
+  const handleDispatch = async (ambulanceId: string, hospitalId?: string) => {
     setDispatchingId(ambulanceId)
     try {
-      const result = await dispatchAmbulance(ambulanceId)
+      const result = hospitalId
+        ? await dispatchAmbulanceToHospital(ambulanceId, hospitalId)
+        : await dispatchAmbulance(ambulanceId)
       if (result) {
         setLastDispatch({ ambulanceId, result })
         pushToast(
@@ -113,8 +125,10 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
       } else {
         pushToast(
           'warning',
-          `No suitable hospital for ${ambulanceId}`,
-          'No facility currently meets the selected resource requirements.'
+          hospitalId ? `Cannot dispatch ${ambulanceId} to that hospital` : `No suitable hospital for ${ambulanceId}`,
+          hospitalId
+            ? 'The selected hospital does not meet the current capacity or resource requirements.'
+            : 'No facility currently meets the selected resource requirements.'
         )
       }
     } catch (error) {
@@ -292,15 +306,15 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
             <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
               <Truck className="h-5 w-5" />
             </div>
-            <h2 className="text-xl font-black text-slate-900 tracking-tight">
+            <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
               Emergency Fleet &amp; Dispatch
             </h2>
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">
               {ambulances.length} UNITS
             </span>
           </div>
-          <p className="text-xs font-semibold text-slate-500 mt-1">
-            Smart-routed Jaipur emergency fleet with real-time auto-diversion &amp; capacity awareness
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
+            {t('fleet.subtitle')}
           </p>
         </div>
 
@@ -309,7 +323,7 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
             variant="outline"
             size="sm"
             onClick={refetch}
-            className="h-10 px-4 rounded-2xl border-slate-200 text-slate-700 hover:bg-slate-50 font-bold text-xs space-x-1.5"
+            className="h-10 px-4 rounded-2xl border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold text-xs space-x-1.5"
           >
             <RefreshCw className="h-3.5 w-3.5 text-slate-500" />
             <span>Refresh Data</span>
@@ -328,18 +342,18 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
       </div>
 
       {/* ── Specialty Preference Filter ───────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex flex-col gap-3">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm p-4 flex flex-col gap-3">
         <div className="flex flex-col sm:flex-row items-center gap-3">
-        <div className="flex items-center gap-2 text-slate-500 shrink-0">
+        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 shrink-0">
           <Activity className="h-4 w-4 text-indigo-500" />
-          <span className="text-sm font-semibold">Patient specialty requirement:</span>
+          <span className="text-sm font-semibold">{t('fleet.specialtyReq')}</span>
         </div>
         <input
           type="text"
-          placeholder="e.g. Cardiology, Trauma, Pediatrics… (leave blank for none)"
+          placeholder={t('fleet.specialtyPlaceholder')}
           value={dispatchSpecialty}
           onChange={(e) => setDispatchSpecialty(e.target.value)}
-          className="flex-1 h-10 px-4 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400/30 placeholder-slate-300 w-full"
+          className="flex-1 h-10 px-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-100 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400/30 placeholder-slate-400 w-full"
         />
         {dispatchSpecialty && (
           <button
@@ -350,11 +364,11 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
           </button>
         )}
         </div>
-        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100">
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
           <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-            Required resources:
+            {t('fleet.requiredResources')}
           </span>
-          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 cursor-pointer">
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
             <input
               type="checkbox"
               checked={requiresIcu}
@@ -363,7 +377,7 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
             />
             ICU bed
           </label>
-          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 cursor-pointer">
+          <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
             <input
               type="checkbox"
               checked={requiresVentilator}
@@ -387,10 +401,10 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
 
       {/* ── KPI Bar ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-        <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-5 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none flex items-center justify-between">
           <div>
-            <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">ACTIVE FLEET IN FIELD</div>
-            <div className="text-2xl lg:text-3xl font-black text-slate-900 mt-0.5 font-mono">
+            <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">{t('fleet.activeFleet')}</div>
+            <div className="text-2xl lg:text-3xl font-black text-slate-900 dark:text-white mt-0.5 font-mono">
               {activeCount} <span className="text-xs font-bold text-slate-400">/ {ambulances.length}</span>
             </div>
           </div>
@@ -399,19 +413,19 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-5 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none flex items-center justify-between">
           <div>
-            <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">IDLE / STAGED UNITS</div>
-            <div className="text-2xl lg:text-3xl font-black text-slate-600 mt-0.5 font-mono">{idleCount}</div>
+            <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">{t('fleet.idleUnits')}</div>
+            <div className="text-2xl lg:text-3xl font-black text-slate-600 dark:text-slate-300 mt-0.5 font-mono">{idleCount}</div>
           </div>
           <div className="h-11 w-11 rounded-2xl bg-slate-100 text-slate-600 border border-slate-200 flex items-center justify-center shrink-0">
             <Navigation className="h-5 w-5" />
           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-5 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none flex items-center justify-between">
           <div>
-            <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">EN ROUTE TO HOSPITAL</div>
+            <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">{t('fleet.enrouteHospital')}</div>
             <div className="text-2xl lg:text-3xl font-black text-blue-600 mt-0.5 font-mono">{enrouteCount}</div>
           </div>
           <div className="h-11 w-11 rounded-2xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0">
@@ -419,9 +433,9 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] flex items-center justify-between">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-5 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none flex items-center justify-between">
           <div>
-            <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">PATIENT OCCUPIED</div>
+            <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">{t('fleet.patientOccupied')}</div>
             <div className="text-2xl lg:text-3xl font-black text-orange-600 mt-0.5 font-mono">{occupiedCount}</div>
           </div>
           <div className="h-11 w-11 rounded-2xl bg-orange-50 text-orange-600 border border-orange-100 flex items-center justify-center shrink-0">
@@ -431,24 +445,32 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
       </div>
 
       {/* ── Main Split: Map + Fleet Panel ───────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="space-y-6">
         {/* Map */}
-        <div className="lg:col-span-8 h-[640px]">
-          <DispatchMap
+        <div className="h-[min(76vh,820px)] min-h-[560px] w-full">
+          <EmergencyMap
             hospitals={hospitals}
             ambulances={ambulances}
+            updateAmbulance={updateAmbulance}
+            isConfigured={isConfigured}
+            isLive={isLive}
+            isUsingMockData={isUsingMockData}
             selectedAmbulanceId={selectedAmbulanceId}
             trafficZones={trafficZones}
             incidentHotspots={incidentHotspots}
+            onSelectAmbulance={setSelectedAmbulanceId}
+            onDispatchToHospital={handleDispatch}
+            onRefreshAvailability={refetch}
+            dispatchingAmbulanceId={dispatchingId}
           />
         </div>
 
         {/* Fleet Side Panel */}
-        <div className="lg:col-span-4 bg-white rounded-[2.5rem] p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] h-[640px] flex flex-col">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100 shrink-0">
+        <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
             <div className="flex items-center space-x-2">
               <Truck className="h-5 w-5 text-indigo-600" />
-              <h3 className="text-base font-extrabold text-slate-900">Live Fleet Monitor</h3>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">{t('fleet.liveMonitor')}</h3>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-50 border border-indigo-100">
@@ -459,7 +481,7 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
           </div>
 
           {/* Ambulance list */}
-          <div className="space-y-3 mt-4 overflow-y-auto flex-1 pr-1">
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3 max-h-[560px] overflow-y-auto pr-1">
             {ambulances.map((amb) => {
               const assignedHospital = hospitals.find((h) => h.id === amb.assigned_hospital_id)
               const isSelected = selectedAmbulanceId === amb.id
@@ -492,7 +514,7 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
                       >
                         <Truck className="h-4 w-4" />
                       </div>
-                      <span className="font-extrabold text-slate-900 text-sm">{amb.id}</span>
+                      <span className="font-extrabold text-slate-900 dark:text-white text-sm">{amb.id}</span>
                     </div>
 
                     <span
@@ -547,6 +569,34 @@ export const FleetDispatchPage: React.FC<FleetDispatchPageProps> = ({
                         >
                           <Zap className="h-3.5 w-3.5" />
                           {isDispatching ? 'Routing...' : 'Smart Dispatch'}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Re-assign Ambulance button for enroute or occupied units */}
+                    {!isIdle && (
+                      <div className="pt-2" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={async () => {
+                            // Find an alternative hospital that has available beds
+                            const altHospitals = hospitals.filter(h => h.id !== amb.assigned_hospital_id && h.occupied_beds < h.total_beds)
+                            const nextTarget = altHospitals.length > 0 ? altHospitals[0] : hospitals[0]
+                            if (nextTarget) {
+                              await updateAmbulance(amb.id, {
+                                assigned_hospital_id: nextTarget.id,
+                                er_status: 'pending',
+                              })
+                              pushToast(
+                                'reroute',
+                                `Unit ${amb.id} Re-Assigned`,
+                                `Rerouted to ${nextTarget.name}`
+                              )
+                            }
+                          }}
+                          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-extrabold transition-all duration-150 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm"
+                        >
+                          <RefreshCw className="h-3.5 w-3.5 text-indigo-500" />
+                          Re-assign Facility
                         </button>
                       </div>
                     )}

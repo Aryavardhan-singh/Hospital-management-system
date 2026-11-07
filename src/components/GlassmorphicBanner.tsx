@@ -1,5 +1,5 @@
 import React from 'react'
-import { Activity, ShieldAlert, Sparkles, ArrowRight } from 'lucide-react'
+import { Activity, Sparkles, ArrowRight } from 'lucide-react'
 import { Button } from './ui/button'
 
 interface GlassmorphicBannerProps {

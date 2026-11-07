@@ -20,14 +20,14 @@ export const IncidentSimulationControls: React.FC<IncidentSimulationControlsProp
   onCapacitySurge,
   onClear,
 }) => (
-  <section className="bg-white rounded-[2rem] p-5 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] space-y-4">
+  <section className="bg-white dark:bg-slate-900 rounded-[2rem] p-5 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none space-y-4">
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div>
-        <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
           <Activity className="h-4 w-4 text-indigo-600" />
           Incident &amp; Simulation Controls
         </h3>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
           Run demo scenarios to exercise routing, fleet load, and capacity diversion.
         </p>
       </div>
@@ -35,7 +35,7 @@ export const IncidentSimulationControls: React.FC<IncidentSimulationControlsProp
         <button
           onClick={onClear}
           disabled={isSimulating}
-          className="inline-flex items-center gap-1.5 self-start sm:self-auto px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 self-start sm:self-auto px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-50"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Clear simulations

@@ -153,7 +153,9 @@ export function scoreHospital(
       : 100
 
   const totalIcuBeds = hospital.icuBedsTotal ?? hospital.icu_beds
-  const availableIcu = hospital.icuBedsAvailable
+  // Factor in active reservations so subsequent dispatches don't overbook
+  const reservedIcu = hospital.reserved_icu_beds ?? 0
+  const availableIcu = Math.max(0, (hospital.icuBedsAvailable ?? 0) - reservedIcu)
   const availableVentilators = hospital.ventilatorsAvailable
   const requiresIcu = options?.requiresIcu || effectiveSeverity === 'critical'
   const requiresVentilator = options?.requiresVentilator || effectiveSeverity === 'critical'

@@ -2,6 +2,12 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '@/supabaseClient'
 import { Hospital, Ambulance } from '@/types'
 import { reportDataWriteError } from '@/lib/dataErrors'
+import {
+  queueAction,
+  getQueuedActions,
+  removeQueuedAction,
+  type QueuedAction,
+} from '@/lib/offlineQueue'
 
 const MOCK_HOSPITALS: Hospital[] = [
   {
@@ -51,76 +57,76 @@ const MOCK_HOSPITALS: Hospital[] = [
     icuBedsAvailable: 2,
     ventilatorsAvailable: 4,
     oxygenStatus: 'low',
-    bloodTypesAvailable: ['B+', 'O+', 'O-'],
-    specialties: ['Cardiology', 'Oncology', 'Gastroenterology', 'Transplants'],
-    status: 'busy',
+    bloodTypesAvailable: ['A+', 'B+', 'O+'],
+    specialties: ['Cardiology', 'Nephrology', 'Critical Care'],
+    status: 'operational',
   },
   {
     id: '44444444-4444-4444-4444-444444444444',
-    name: 'Manipal Hospital Jaipur',
-    lat: 26.858,
-    lng: 75.813,
+    name: 'Manipal Hospital',
+    lat: 26.902,
+    lng: 75.751,
     total_beds: 140,
-    occupied_beds: 84,
+    occupied_beds: 72,
     icu_beds: 25,
     icu_occupied: 10,
     icuBedsTotal: 25,
     icuBedsAvailable: 15,
     ventilatorsAvailable: 10,
     oxygenStatus: 'sufficient',
-    bloodTypesAvailable: ['A+', 'B+', 'O+', 'O-', 'AB-', 'AB+'],
-    specialties: ['Multi-speciality', 'Critical Care'],
+    bloodTypesAvailable: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'],
+    specialties: ['General Medicine', 'Paediatrics', 'Orthopaedics'],
     status: 'operational',
   },
   {
     id: '55555555-5555-5555-5555-555555555555',
-    name: 'JK Lone Hospital',
-    lat: 26.913,
-    lng: 75.806,
-    total_beds: 190,
-    occupied_beds: 182,
-    icu_beds: 30,
-    icu_occupied: 28,
-    icuBedsTotal: 30,
+    name: 'JK Lone Hospital (Paediatrics)',
+    lat: 26.9085,
+    lng: 75.8155,
+    total_beds: 120,
+    occupied_beds: 108,
+    icu_beds: 20,
+    icu_occupied: 18,
+    icuBedsTotal: 20,
     icuBedsAvailable: 2,
     ventilatorsAvailable: 1,
     oxygenStatus: 'critical',
-    bloodTypesAvailable: ['A+', 'B+', 'O+'],
-    specialties: ['Pediatrics', 'NICU', 'PICU'],
-    status: 'critical',
+    bloodTypesAvailable: ['O+', 'B+'],
+    specialties: ['Paediatrics', 'Neonatology', 'Critical Care'],
+    status: 'operational',
   },
   {
     id: '66666666-6666-6666-6666-666666666666',
     name: 'Mahila Chikitsalaya',
-    lat: 26.9115,
-    lng: 75.8065,
-    total_beds: 150,
-    occupied_beds: 95,
-    icu_beds: 20,
-    icu_occupied: 11,
-    icuBedsTotal: 20,
+    lat: 26.9189,
+    lng: 75.823,
+    total_beds: 90,
+    occupied_beds: 58,
+    icu_beds: 15,
+    icu_occupied: 6,
+    icuBedsTotal: 15,
     icuBedsAvailable: 9,
     ventilatorsAvailable: 5,
     oxygenStatus: 'sufficient',
-    bloodTypesAvailable: ['A+', 'B+', 'B-', 'O+'],
-    specialties: ['Obstetrics', 'Gynaecology', 'High-risk pregnancy'],
+    bloodTypesAvailable: ['A+', 'B+', 'O+', 'O-'],
+    specialties: ['Maternity', 'Gynaecology', 'Obstetrics'],
     status: 'operational',
   },
   {
     id: '77777777-7777-7777-7777-777777777777',
     name: 'Apex Hospital',
-    lat: 26.859,
-    lng: 75.814,
-    total_beds: 90,
-    occupied_beds: 42,
-    icu_beds: 12,
-    icu_occupied: 3,
-    icuBedsTotal: 12,
+    lat: 26.852,
+    lng: 75.812,
+    total_beds: 110,
+    occupied_beds: 79,
+    icu_beds: 22,
+    icu_occupied: 13,
+    icuBedsTotal: 22,
     icuBedsAvailable: 9,
     ventilatorsAvailable: 6,
     oxygenStatus: 'sufficient',
-    bloodTypesAvailable: ['A+', 'O+'],
-    specialties: ['General', 'Emergency Care'],
+    bloodTypesAvailable: ['A+', 'B+', 'AB+', 'O+'],
+    specialties: ['Cardiology', 'Neurology', 'Critical Care'],
     status: 'operational',
   },
 ]
@@ -128,92 +134,105 @@ const MOCK_HOSPITALS: Hospital[] = [
 const MOCK_AMBULANCES: Ambulance[] = [
   {
     id: 'AMB-101',
-    lat: 26.908,
-    lng: 75.805,
-    status: 'occupied',
+    lat: 26.9124,
+    lng: 75.807,
+    status: 'idle',
     assigned_hospital_id: '11111111-1111-1111-1111-111111111111',
-    er_status: 'accepted',
-    erStatus: 'accepted',
-    patient_condition: 'Polytrauma - Vehicular collision, conscious',
-    triage_level: 'urgent',
   },
   {
     id: 'AMB-102',
-    lat: 26.862,
-    lng: 75.809,
-    status: 'enroute',
-    assigned_hospital_id: '22222222-2222-2222-2222-222222222222',
-    er_status: 'pending',
-    erStatus: 'pending',
-    patient_condition: 'Suspected STEMI / Acute coronary syndrome',
-    triage_level: 'critical',
+    lat: 26.9085,
+    lng: 75.8155,
+    status: 'idle',
+    assigned_hospital_id: '55555555-5555-5555-5555-555555555555',
   },
   {
     id: 'AMB-103',
-    lat: 26.856,
-    lng: 75.812,
+    lat: 26.8656,
+    lng: 75.808,
     status: 'idle',
-    assigned_hospital_id: null,
+    assigned_hospital_id: '22222222-2222-2222-2222-222222222222',
   },
   {
     id: 'AMB-104',
-    lat: 26.808,
-    lng: 75.795,
+    lat: 26.852,
+    lng: 75.812,
+    status: 'enroute',
+    assigned_hospital_id: '77777777-7777-7777-7777-777777777777',
+  },
+  {
+    id: 'AMB-105',
+    lat: 26.902,
+    lng: 75.751,
+    status: 'idle',
+    assigned_hospital_id: '44444444-4444-4444-4444-444444444444',
+  },
+  {
+    id: 'AMB-106',
+    lat: 26.81,
+    lng: 75.797,
     status: 'occupied',
     assigned_hospital_id: '33333333-3333-3333-3333-333333333333',
-    er_status: 'pending',
-    erStatus: 'pending',
-    patient_condition: 'Severe respiratory distress, SpO2 86%',
-    triage_level: 'critical',
+  },
+  {
+    id: 'AMB-107',
+    lat: 26.9189,
+    lng: 75.823,
+    status: 'idle',
+    assigned_hospital_id: '66666666-6666-6666-6666-666666666666',
   },
 ]
 
 function normalizeHospital(row: Record<string, unknown>): Hospital {
-  const numberValue = (value: unknown, fallback = 0) =>
-    typeof value === 'number' && Number.isFinite(value) ? value : fallback
+  const totalBeds = Number(row.total_beds ?? 0)
+  const occupiedBeds = Number(row.occupied_beds ?? 0)
+  const icuBeds = Number(row.icu_beds ?? 0)
+  const icuOccupied = Number(row.icu_occupied ?? 0)
+  const icuBedsTotal = row.icuBedsTotal !== undefined ? Number(row.icuBedsTotal) : icuBeds
+  const icuBedsAvailable =
+    row.icuBedsAvailable !== undefined
+      ? Number(row.icuBedsAvailable)
+      : Math.max(0, icuBeds - icuOccupied)
+  const ventilatorsAvailable =
+    row.ventilatorsAvailable !== undefined ? Number(row.ventilatorsAvailable) : 5
+  const oxygenStatus =
+    row.oxygenStatus === 'sufficient' || row.oxygenStatus === 'low' || row.oxygenStatus === 'critical'
+      ? row.oxygenStatus
+      : 'sufficient'
+  const bloodTypesAvailable = Array.isArray(row.bloodTypesAvailable)
+    ? (row.bloodTypesAvailable as string[])
+    : undefined
 
-  const legacyIcuTotal = numberValue(row.icu_beds)
-  const legacyIcuOccupied = numberValue(row.icu_occupied)
-  const icuBedsTotal = numberValue(row.icuBedsTotal ?? row.icu_beds_total, legacyIcuTotal)
-  const icuBedsAvailable = numberValue(
-    row.icuBedsAvailable ?? row.icu_beds_available,
-    Math.max(0, icuBedsTotal - legacyIcuOccupied)
-  )
-  const oxygen = row.oxygenStatus ?? row.oxygen_status
-  const bloodTypes = row.bloodTypesAvailable ?? row.blood_types_available
+  const status: 'operational' | 'busy' | 'critical' =
+    row.status === 'critical' || row.status === 'busy' || row.status === 'operational'
+      ? row.status
+      : totalBeds > 0 && occupiedBeds / totalBeds >= 0.95
+        ? 'critical'
+        : totalBeds > 0 && occupiedBeds / totalBeds >= 0.75
+          ? 'busy'
+          : 'operational'
 
   return {
-    id: String(row.id ?? ''),
-    name: String(row.name ?? 'Unknown Hospital'),
-    lat: numberValue(row.lat),
-    lng: numberValue(row.lng),
-    total_beds: numberValue(row.total_beds),
-    occupied_beds: numberValue(row.occupied_beds),
-    icu_beds: legacyIcuTotal,
-    icu_occupied: legacyIcuOccupied,
+    id: String(row.id),
+    name: String(row.name),
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    total_beds: totalBeds,
+    occupied_beds: occupiedBeds,
+    icu_beds: icuBeds,
+    icu_occupied: icuOccupied,
     icuBedsTotal,
     icuBedsAvailable,
-    ventilatorsAvailable: numberValue(row.ventilatorsAvailable ?? row.ventilators_available),
-    oxygenStatus:
-      oxygen === 'sufficient' || oxygen === 'low' || oxygen === 'critical'
-        ? oxygen
-        : 'critical',
-    bloodTypesAvailable: Array.isArray(bloodTypes)
-      ? bloodTypes.filter((bloodType): bloodType is string => typeof bloodType === 'string')
-      : undefined,
-    specialties: Array.isArray(row.specialties)
-      ? row.specialties.filter((specialty): specialty is string => typeof specialty === 'string')
-      : [],
-    status:
-      row.status === 'operational' || row.status === 'busy' || row.status === 'critical'
-        ? row.status
-        : 'operational',
-    created_at: typeof row.created_at === 'string' ? row.created_at : undefined,
+    ventilatorsAvailable,
+    oxygenStatus,
+    bloodTypesAvailable,
+    specialties: Array.isArray(row.specialties) ? (row.specialties as string[]) : [],
+    status,
   }
 }
 
-function toHospitalRecord(hospital: Hospital) {
-  return {
+function toHospitalRecord(hospital: Hospital): Record<string, unknown> {
+  const record: Record<string, unknown> = {
     id: hospital.id,
     name: hospital.name,
     lat: hospital.lat,
@@ -222,96 +241,131 @@ function toHospitalRecord(hospital: Hospital) {
     occupied_beds: hospital.occupied_beds,
     icu_beds: hospital.icu_beds,
     icu_occupied: hospital.icu_occupied,
-    icu_beds_total: hospital.icuBedsTotal,
-    icu_beds_available: hospital.icuBedsAvailable,
-    ventilators_available: hospital.ventilatorsAvailable,
-    oxygen_status: hospital.oxygenStatus,
-    blood_types_available: hospital.bloodTypesAvailable ?? [],
     specialties: hospital.specialties,
     status: hospital.status,
   }
+  if (hospital.icuBedsTotal !== undefined) record.icuBedsTotal = hospital.icuBedsTotal
+  if (hospital.icuBedsAvailable !== undefined) record.icuBedsAvailable = hospital.icuBedsAvailable
+  if (hospital.ventilatorsAvailable !== undefined) record.ventilatorsAvailable = hospital.ventilatorsAvailable
+  if (hospital.oxygenStatus !== undefined) record.oxygenStatus = hospital.oxygenStatus
+  if (hospital.bloodTypesAvailable !== undefined) record.bloodTypesAvailable = hospital.bloodTypesAvailable
+  return record
 }
 
 function normalizeAmbulance(row: Record<string, unknown>): Ambulance {
-  const optionalNumber = (value: unknown) =>
-    typeof value === 'number' && Number.isFinite(value) ? value : undefined
-  const erStatus = row.er_status
-  const triageLevel = row.triage_level
-  const severity = row.severity
-  const dispatchStage = row.dispatch_stage
+  const erStatus =
+    row.er_status === 'pending' || row.er_status === 'accepted' || row.er_status === 'diverted'
+      ? row.er_status
+      : undefined
 
   return {
-    id: String(row.id ?? ''),
-    lat: typeof row.lat === 'number' ? row.lat : 0,
-    lng: typeof row.lng === 'number' ? row.lng : 0,
-    status: row.status === 'enroute' || row.status === 'occupied' ? row.status : 'idle',
-    assigned_hospital_id:
-      typeof row.assigned_hospital_id === 'string' ? row.assigned_hospital_id : null,
-    er_status:
-      erStatus === 'accepted' || erStatus === 'diverted' || erStatus === 'pending'
-        ? erStatus
-        : undefined,
-    erStatus:
-      erStatus === 'accepted' || erStatus === 'diverted' || erStatus === 'pending'
-        ? erStatus
-        : undefined,
-    patient_condition:
-      typeof row.patient_condition === 'string' ? row.patient_condition : undefined,
+    id: String(row.id),
+    lat: Number(row.lat),
+    lng: Number(row.lng),
+    status:
+      row.status === 'enroute' || row.status === 'occupied'
+        ? row.status
+        : 'idle',
+    assigned_hospital_id: row.assigned_hospital_id ? String(row.assigned_hospital_id) : null,
+    er_status: erStatus,
+    erStatus,
+    patient_condition: row.patient_condition ? String(row.patient_condition) : undefined,
     triage_level:
-      triageLevel === 'critical' || triageLevel === 'moderate' || triageLevel === 'minor' ||
-      triageLevel === 'urgent' || triageLevel === 'stable'
-        ? triageLevel
+      row.triage_level === 'critical' || row.triage_level === 'moderate' || row.triage_level === 'minor'
+        ? row.triage_level
         : undefined,
     severity:
-      severity === 'critical' || severity === 'moderate' || severity === 'minor'
-        ? severity
+      row.severity === 'critical' || row.severity === 'moderate' || row.severity === 'minor'
+        ? row.severity
         : undefined,
     dispatch_stage:
-      dispatchStage === 'dispatched' || dispatchStage === 'enroute_pickup' ||
-      dispatchStage === 'picked_up' || dispatchStage === 'enroute_hospital' ||
-      dispatchStage === 'arrived'
-        ? dispatchStage
+      row.dispatch_stage === 'dispatched' ||
+      row.dispatch_stage === 'enroute_pickup' ||
+      row.dispatch_stage === 'picked_up' ||
+      row.dispatch_stage === 'enroute_hospital' ||
+      row.dispatch_stage === 'arrived'
+        ? row.dispatch_stage
         : undefined,
-    patient_lat: optionalNumber(row.patient_lat),
-    patient_lng: optionalNumber(row.patient_lng),
-    created_at: typeof row.created_at === 'string' ? row.created_at : undefined,
+    patient_lat: row.patient_lat !== undefined && row.patient_lat !== null ? Number(row.patient_lat) : undefined,
+    patient_lng: row.patient_lng !== undefined && row.patient_lng !== null ? Number(row.patient_lng) : undefined,
   }
 }
 
-function toAmbulanceRecord(ambulance: Ambulance) {
-  return {
+function toAmbulanceRecord(ambulance: Ambulance): Record<string, unknown> {
+  const record: Record<string, unknown> = {
     id: ambulance.id,
     lat: ambulance.lat,
     lng: ambulance.lng,
     status: ambulance.status,
     assigned_hospital_id: ambulance.assigned_hospital_id,
-    er_status: ambulance.er_status ?? ambulance.erStatus ?? 'pending',
-    patient_condition: ambulance.patient_condition ?? null,
-    triage_level: ambulance.triage_level ?? null,
-    severity: ambulance.severity ?? null,
-    dispatch_stage: ambulance.dispatch_stage ?? null,
-    patient_lat: ambulance.patient_lat ?? null,
-    patient_lng: ambulance.patient_lng ?? null,
   }
+  const erStatus = ambulance.er_status ?? ambulance.erStatus
+  if (erStatus !== undefined) record.er_status = erStatus
+  if (ambulance.patient_condition !== undefined) record.patient_condition = ambulance.patient_condition
+  if (ambulance.triage_level !== undefined) record.triage_level = ambulance.triage_level
+  if (ambulance.severity !== undefined) record.severity = ambulance.severity
+  if (ambulance.dispatch_stage !== undefined) record.dispatch_stage = ambulance.dispatch_stage
+  if (ambulance.patient_lat !== undefined) record.patient_lat = ambulance.patient_lat
+  if (ambulance.patient_lng !== undefined) record.patient_lng = ambulance.patient_lng
+  return record
 }
 
 export function useSupabaseData() {
-  const [hospitals, setHospitals] = useState<Hospital[]>([])
-  const [ambulances, setAmbulances] = useState<Ambulance[]>([])
+  const [hospitals, setHospitals] = useState<Hospital[]>(() => {
+    // Attempt local storage cache first for instant offline startup
+    try {
+      const cached = localStorage.getItem('mednet_cached_hospitals')
+      if (cached) return JSON.parse(cached)
+    } catch {}
+    return MOCK_HOSPITALS
+  })
+  const [ambulances, setAmbulances] = useState<Ambulance[]>(() => {
+    try {
+      const cached = localStorage.getItem('mednet_cached_ambulances')
+      if (cached) return JSON.parse(cached)
+    } catch {}
+    return MOCK_AMBULANCES
+  })
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [isLive, setIsLive] = useState<boolean>(false)
   const [isUsingMockData, setIsUsingMockData] = useState<boolean>(false)
   const [isSeeding, setIsSeeding] = useState<boolean>(false)
+  const [queuedCount, setQueuedCount] = useState<number>(0)
+  const [isSyncing, setIsSyncing] = useState<boolean>(false)
+
+  // Cache state updates to localStorage for seamless offline restarts
+  const updateCachedHospitals = useCallback((data: Hospital[]) => {
+    setHospitals(data)
+    try {
+      localStorage.setItem('mednet_cached_hospitals', JSON.stringify(data))
+    } catch {}
+  }, [])
+
+  const updateCachedAmbulances = useCallback((data: Ambulance[]) => {
+    setAmbulances(data)
+    try {
+      localStorage.setItem('mednet_cached_ambulances', JSON.stringify(data))
+    } catch {}
+  }, [])
+
+  // Refresh queued actions count from IndexedDB
+  const refreshQueuedCount = useCallback(async () => {
+    try {
+      const actions = await getQueuedActions()
+      setQueuedCount(actions.length)
+    } catch {
+      setQueuedCount(0)
+    }
+  }, [])
 
   // Fetch initial data
   const fetchData = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
-      setHospitals(MOCK_HOSPITALS)
-      setAmbulances(MOCK_AMBULANCES)
+    if (!navigator.onLine || !isSupabaseConfigured()) {
       setIsLive(false)
       setIsUsingMockData(true)
       setLoading(false)
+      void refreshQueuedCount()
       return
     }
 
@@ -327,31 +381,83 @@ export function useSupabaseData() {
 
       const usingMockData = !hospRes.data?.length || !ambRes.data?.length
       if (hospRes.data && hospRes.data.length > 0) {
-        setHospitals(hospRes.data.map((row) => normalizeHospital(row as Record<string, unknown>)))
+        updateCachedHospitals(hospRes.data.map((row) => normalizeHospital(row as Record<string, unknown>)))
       } else {
-        setHospitals(MOCK_HOSPITALS)
+        updateCachedHospitals(MOCK_HOSPITALS)
       }
 
       if (ambRes.data && ambRes.data.length > 0) {
-        setAmbulances(ambRes.data.map((row) => normalizeAmbulance(row as Record<string, unknown>)))
+        updateCachedAmbulances(ambRes.data.map((row) => normalizeAmbulance(row as Record<string, unknown>)))
       } else {
-        setAmbulances(MOCK_AMBULANCES)
+        updateCachedAmbulances(MOCK_AMBULANCES)
       }
 
       setIsLive(true)
       setIsUsingMockData(usingMockData)
       setError(null)
-    } catch (err: any) {
-      console.error('Supabase fetch error:', err)
-      setError(err.message || 'Failed to connect to Supabase')
-      setHospitals(MOCK_HOSPITALS)
-      setAmbulances(MOCK_AMBULANCES)
+    } catch (err: unknown) {
+      console.warn('Supabase fetch failed or network offline, falling back to cache:', err)
       setIsLive(false)
       setIsUsingMockData(true)
     } finally {
       setLoading(false)
+      void refreshQueuedCount()
     }
-  }, [])
+  }, [updateCachedHospitals, updateCachedAmbulances, refreshQueuedCount])
+
+  // Flush background sync queue to Supabase when online
+  const flushOfflineQueue = useCallback(async () => {
+    if (!navigator.onLine || !isSupabaseConfigured()) return
+    setIsSyncing(true)
+
+    try {
+      const queue: QueuedAction[] = await getQueuedActions()
+      if (queue.length === 0) {
+        setIsSyncing(false)
+        setQueuedCount(0)
+        return
+      }
+
+      for (const action of queue) {
+        try {
+          if (action.type === 'request_ambulance') {
+            const ambulance = action.payload as unknown as Ambulance
+            await supabase.from('ambulances').insert([toAmbulanceRecord(ambulance)])
+          } else if (action.type === 'update_ambulance') {
+            const { id, ...patch } = action.payload
+            await supabase.from('ambulances').update(patch).eq('id', id)
+          } else if (action.type === 'update_bed_occupancy') {
+            const { id, occupied_beds } = action.payload
+            await supabase.from('hospitals').update({ occupied_beds }).eq('id', id)
+          }
+
+          if (action.id) {
+            await removeQueuedAction(action.id)
+          }
+        } catch (itemError) {
+          console.error('[OfflineQueue] Failed to sync item:', action, itemError)
+          // Keep item in queue if transient failure
+        }
+      }
+
+      await refreshQueuedCount()
+    } catch (err) {
+      console.error('[OfflineQueue] Error during queue flush:', err)
+    } finally {
+      setIsSyncing(false)
+    }
+  }, [refreshQueuedCount])
+
+  // Monitor network online event to trigger flush
+  useEffect(() => {
+    const handleOnline = () => {
+      void flushOfflineQueue()
+      void fetchData()
+    }
+
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
+  }, [flushOfflineQueue, fetchData])
 
   // Seed sample data to Supabase
   const seedDatabase = useCallback(async () => {
@@ -362,21 +468,65 @@ export function useSupabaseData() {
 
     try {
       setIsSeeding(true)
-      // Upsert hospitals
-      const { data: hospitalRows, error: hErr } = await supabase
+      setError(null)
+
+      let { data: hospitalRows, error: hErr } = await supabase
         .from('hospitals')
         .upsert(MOCK_HOSPITALS.map(toHospitalRecord), { onConflict: 'id' })
         .select('id')
+
+      if (hErr && hErr.code === 'PGRST204') {
+        const fallback = await supabase
+          .from('hospitals')
+          .upsert(
+            MOCK_HOSPITALS.map((hospital) => {
+              const row = toHospitalRecord(hospital)
+              delete row.icuBedsTotal
+              delete row.icuBedsAvailable
+              delete row.ventilatorsAvailable
+              delete row.oxygenStatus
+              delete row.bloodTypesAvailable
+              return row
+            }),
+            { onConflict: 'id' }
+          )
+          .select('id')
+        hospitalRows = fallback.data
+        hErr = fallback.error
+      }
+
       if (hErr) throw hErr
       if (!hospitalRows || hospitalRows.length !== MOCK_HOSPITALS.length) {
         throw new Error('The database did not confirm every hospital seed record.')
       }
 
-      // Upsert ambulances
-      const { data: ambulanceRows, error: aErr } = await supabase
+      let { data: ambulanceRows, error: aErr } = await supabase
         .from('ambulances')
         .upsert(MOCK_AMBULANCES.map(toAmbulanceRecord), { onConflict: 'id' })
         .select('id')
+
+      if (aErr && aErr.code === 'PGRST204') {
+        const fallback = await supabase
+          .from('ambulances')
+          .upsert(
+            MOCK_AMBULANCES.map((ambulance) => {
+              const row = toAmbulanceRecord(ambulance)
+              delete row.er_status
+              delete row.patient_condition
+              delete row.triage_level
+              delete row.severity
+              delete row.dispatch_stage
+              delete row.patient_lat
+              delete row.patient_lng
+              return row
+            }),
+            { onConflict: 'id' }
+          )
+          .select('id')
+        ambulanceRows = fallback.data
+        aErr = fallback.error
+      }
+
       if (aErr) throw aErr
       if (!ambulanceRows || ambulanceRows.length !== MOCK_AMBULANCES.length) {
         throw new Error('The database did not confirm every ambulance seed record.')
@@ -399,7 +549,14 @@ export function useSupabaseData() {
     if (newAmbulances.length === 0) return
 
     const newIds = new Set(newAmbulances.map((ambulance) => ambulance.id))
-    if (isSupabaseConfigured()) {
+    
+    // If offline or Supabase fails, queue in IndexedDB
+    if (!navigator.onLine || !isSupabaseConfigured()) {
+      for (const amb of newAmbulances) {
+        await queueAction('request_ambulance', amb as unknown as Record<string, unknown>)
+      }
+      await refreshQueuedCount()
+    } else {
       try {
         const { data, error: insertError } = await supabase
           .from('ambulances')
@@ -410,37 +567,44 @@ export function useSupabaseData() {
           throw new Error('The database did not confirm every ambulance record.')
         }
       } catch (error) {
-        const failure = reportDataWriteError('Adding ambulance records', error)
-        setError(failure.message)
-        throw failure
+        console.warn('Network error adding ambulance, enqueuing for background sync:', error)
+        for (const amb of newAmbulances) {
+          await queueAction('request_ambulance', amb as unknown as Record<string, unknown>)
+        }
+        await refreshQueuedCount()
       }
     }
 
-    setAmbulances((previous) => [
-      ...previous.filter((ambulance) => !newIds.has(ambulance.id)),
+    updateCachedAmbulances([
+      ...ambulances.filter((ambulance) => !newIds.has(ambulance.id)),
       ...newAmbulances,
     ])
-  }, [])
+  }, [ambulances, updateCachedAmbulances, refreshQueuedCount])
 
-  // Generic ambulance update helper (lat, lng, status, assigned_hospital_id, er_status)
+  // Generic ambulance update helper
   const updateAmbulance = useCallback(
     async (ambulanceId: string, patch: Partial<Ambulance>) => {
-      if (isSupabaseConfigured()) {
-        try {
-          const dbPatch: Record<string, unknown> = {}
-          if (patch.lat !== undefined) dbPatch.lat = patch.lat
-          if (patch.lng !== undefined) dbPatch.lng = patch.lng
-          if (patch.status !== undefined) dbPatch.status = patch.status
-          if (patch.assigned_hospital_id !== undefined) dbPatch.assigned_hospital_id = patch.assigned_hospital_id
-          const erStatus = patch.er_status ?? patch.erStatus
-          if (erStatus !== undefined) dbPatch.er_status = erStatus
-          if (patch.patient_condition !== undefined) dbPatch.patient_condition = patch.patient_condition
-          if (patch.triage_level !== undefined) dbPatch.triage_level = patch.triage_level
-          if (patch.severity !== undefined) dbPatch.severity = patch.severity
-          if (patch.dispatch_stage !== undefined) dbPatch.dispatch_stage = patch.dispatch_stage
-          if (patch.patient_lat !== undefined) dbPatch.patient_lat = patch.patient_lat
-          if (patch.patient_lng !== undefined) dbPatch.patient_lng = patch.patient_lng
+      const dbPatch: Record<string, unknown> = {}
+      if (patch.lat !== undefined) dbPatch.lat = patch.lat
+      if (patch.lng !== undefined) dbPatch.lng = patch.lng
+      if (patch.status !== undefined) dbPatch.status = patch.status
+      if (patch.assigned_hospital_id !== undefined) dbPatch.assigned_hospital_id = patch.assigned_hospital_id
+      const erStatus = patch.er_status ?? patch.erStatus
+      if (erStatus !== undefined) dbPatch.er_status = erStatus
+      if (patch.patient_condition !== undefined) dbPatch.patient_condition = patch.patient_condition
+      if (patch.triage_level !== undefined) dbPatch.triage_level = patch.triage_level
+      if (patch.severity !== undefined) dbPatch.severity = patch.severity
+      if (patch.dispatch_stage !== undefined) dbPatch.dispatch_stage = patch.dispatch_stage
+      if (patch.patient_lat !== undefined) dbPatch.patient_lat = patch.patient_lat
+      if (patch.patient_lng !== undefined) dbPatch.patient_lng = patch.patient_lng
 
+      if (!navigator.onLine || !isSupabaseConfigured()) {
+        if (Object.keys(dbPatch).length > 0) {
+          await queueAction('update_ambulance', { id: ambulanceId, ...dbPatch })
+          await refreshQueuedCount()
+        }
+      } else {
+        try {
           if (Object.keys(dbPatch).length > 0) {
             const { data, error } = await supabase
               .from('ambulances')
@@ -451,17 +615,17 @@ export function useSupabaseData() {
             if (!data || data.length === 0) throw new Error('The ambulance record was not found.')
           }
         } catch (error) {
-          const failure = reportDataWriteError(`Updating ambulance ${ambulanceId}`, error)
-          setError(failure.message)
-          throw failure
+          console.warn('Network error updating ambulance, enqueuing for background sync:', error)
+          await queueAction('update_ambulance', { id: ambulanceId, ...dbPatch })
+          await refreshQueuedCount()
         }
       }
 
-      setAmbulances((prev) =>
-        prev.map((a) => (a.id === ambulanceId ? { ...a, ...patch } : a))
+      updateCachedAmbulances(
+        ambulances.map((a) => (a.id === ambulanceId ? { ...a, ...patch } : a))
       )
     },
-    []
+    [ambulances, updateCachedAmbulances, refreshQueuedCount]
   )
 
   // Update ambulance ER pre-arrival status and triage info
@@ -473,7 +637,7 @@ export function useSupabaseData() {
     ) => {
       const patch: Partial<Ambulance> = {
         er_status: erStatus,
-        erStatus: erStatus,
+        erStatus,
       }
       if (patientCondition) {
         patch.patient_condition = patientCondition
@@ -483,13 +647,16 @@ export function useSupabaseData() {
     [updateAmbulance]
   )
 
-  // Simulate a full capacity crisis on a hospital (sets occupied = total)
+  // Simulate a full capacity crisis on a hospital
   const simulateCapacityCrisis = useCallback(
     async (hospitalId: string) => {
       const hospital = hospitals.find((h) => h.id === hospitalId)
       if (!hospital) return
 
-      if (isSupabaseConfigured()) {
+      if (!navigator.onLine || !isSupabaseConfigured()) {
+        await queueAction('update_bed_occupancy', { id: hospitalId, occupied_beds: hospital.total_beds })
+        await refreshQueuedCount()
+      } else {
         try {
           const { data, error } = await supabase
             .from('hospitals')
@@ -499,22 +666,22 @@ export function useSupabaseData() {
           if (error) throw error
           if (!data || data.length === 0) throw new Error('The hospital record was not found.')
         } catch (error) {
-          const failure = reportDataWriteError('Simulating hospital capacity surge', error)
-          setError(failure.message)
-          throw failure
+          console.warn('Error simulating capacity surge, queuing for offline sync:', error)
+          await queueAction('update_bed_occupancy', { id: hospitalId, occupied_beds: hospital.total_beds })
+          await refreshQueuedCount()
         }
       }
 
-      setHospitals((prev) =>
-        prev.map((h) =>
+      updateCachedHospitals(
+        hospitals.map((h) =>
           h.id === hospitalId ? { ...h, occupied_beds: hospital.total_beds } : h
         )
       )
     },
-    [hospitals]
+    [hospitals, updateCachedHospitals, refreshQueuedCount]
   )
 
-  // Update occupancy helper function for demo testing
+  // Update occupancy helper function
   const updateBedOccupancy = useCallback(
     async (hospitalId: string, occupiedBedsDelta: number) => {
       const target = hospitals.find((h) => h.id === hospitalId)
@@ -522,7 +689,10 @@ export function useSupabaseData() {
 
       const newOccupied = Math.max(0, Math.min(target.total_beds, target.occupied_beds + occupiedBedsDelta))
 
-      if (isSupabaseConfigured()) {
+      if (!navigator.onLine || !isSupabaseConfigured()) {
+        await queueAction('update_bed_occupancy', { id: hospitalId, occupied_beds: newOccupied })
+        await refreshQueuedCount()
+      } else {
         try {
           const { data, error } = await supabase
             .from('hospitals')
@@ -532,25 +702,63 @@ export function useSupabaseData() {
           if (error) throw error
           if (!data || data.length === 0) throw new Error('The hospital record was not found.')
         } catch (error) {
-          const failure = reportDataWriteError('Updating hospital bed occupancy', error)
-          setError(failure.message)
-          throw failure
+          console.warn('Error updating bed occupancy, queuing for offline sync:', error)
+          await queueAction('update_bed_occupancy', { id: hospitalId, occupied_beds: newOccupied })
+          await refreshQueuedCount()
         }
       }
 
-      setHospitals((prev) =>
-        prev.map((h) => (h.id === hospitalId ? { ...h, occupied_beds: newOccupied } : h))
+      updateCachedHospitals(
+        hospitals.map((h) => (h.id === hospitalId ? { ...h, occupied_beds: newOccupied } : h))
       )
     },
-    [hospitals]
+    [hospitals, updateCachedHospitals, refreshQueuedCount]
+  )
+
+  // Reserve or release an ICU bed for critical triage dispatches
+  const adjustIcuReservation = useCallback(
+    async (hospitalId: string, delta: number) => {
+      const target = hospitals.find((h) => h.id === hospitalId)
+      if (!target) return
+
+      const currentReserved = target.reserved_icu_beds ?? 0
+      const newReserved = Math.max(0, currentReserved + delta)
+      const newAvailable = Math.max(0, (target.icuBedsAvailable ?? 0) - (delta > 0 ? delta : 0))
+
+      if (isSupabaseConfigured() && navigator.onLine) {
+        try {
+          await supabase
+            .from('hospitals')
+            .update({ icu_beds_available: newAvailable })
+            .eq('id', hospitalId)
+        } catch (err) {
+          console.warn('Failed to persist ICU reservation in Supabase:', err)
+        }
+      }
+
+      updateCachedHospitals(
+        hospitals.map((h) =>
+          h.id === hospitalId
+            ? { ...h, reserved_icu_beds: newReserved, icuBedsAvailable: newAvailable }
+            : h
+        )
+      )
+    },
+    [hospitals, updateCachedHospitals]
   )
 
   useEffect(() => {
-    fetchData()
+    let isMounted = true
+    queueMicrotask(() => {
+      if (isMounted) void fetchData()
+    })
 
-    if (!isSupabaseConfigured()) return
+    if (!isSupabaseConfigured() || !navigator.onLine) {
+      return () => {
+        isMounted = false
+      }
+    }
 
-    // Generate unique channel instance ID to prevent channel reuse collisions
     const channelId = `hospital_realtime_${Math.random().toString(36).substring(2, 9)}`
 
     const channel = supabase
@@ -560,21 +768,29 @@ export function useSupabaseData() {
         { event: '*', schema: 'public', table: 'hospitals' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-          setHospitals((prev) =>
-            [...prev, normalizeHospital(payload.new as Record<string, unknown>)].sort((a, b) =>
-              a.name.localeCompare(b.name)
-            )
-            )
-        } else if (payload.eventType === 'UPDATE') {
-          setHospitals((prev) =>
-            prev.map((h) =>
-              h.id === payload.new.id
-                ? normalizeHospital({ ...h, ...payload.new } as Record<string, unknown>)
-                : h
-            )
-          )
+            setHospitals((prev) => {
+              const updated = [...prev, normalizeHospital(payload.new as Record<string, unknown>)].sort((a, b) =>
+                a.name.localeCompare(b.name)
+              )
+              try { localStorage.setItem('mednet_cached_hospitals', JSON.stringify(updated)) } catch {}
+              return updated
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            setHospitals((prev) => {
+              const updated = prev.map((h) =>
+                h.id === payload.new.id
+                  ? normalizeHospital({ ...h, ...payload.new } as Record<string, unknown>)
+                  : h
+              )
+              try { localStorage.setItem('mednet_cached_hospitals', JSON.stringify(updated)) } catch {}
+              return updated
+            })
           } else if (payload.eventType === 'DELETE') {
-            setHospitals((prev) => prev.filter((h) => h.id === payload.old.id))
+            setHospitals((prev) => {
+              const updated = prev.filter((h) => h.id !== payload.old.id)
+              try { localStorage.setItem('mednet_cached_hospitals', JSON.stringify(updated)) } catch {}
+              return updated
+            })
           }
         }
       )
@@ -583,24 +799,32 @@ export function useSupabaseData() {
         { event: '*', schema: 'public', table: 'ambulances' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-          setAmbulances((prev) => {
-            const inserted = normalizeAmbulance(payload.new as Record<string, unknown>)
-            return prev.some((ambulance) => ambulance.id === inserted.id)
-              ? prev.map((ambulance) =>
-                  ambulance.id === inserted.id ? { ...ambulance, ...inserted } : ambulance
-                )
-              : [...prev, inserted]
-          })
+            setAmbulances((prev) => {
+              const inserted = normalizeAmbulance(payload.new as Record<string, unknown>)
+              const updated = prev.some((ambulance) => ambulance.id === inserted.id)
+                ? prev.map((ambulance) =>
+                    ambulance.id === inserted.id ? { ...ambulance, ...inserted } : ambulance
+                  )
+                : [...prev, inserted]
+              try { localStorage.setItem('mednet_cached_ambulances', JSON.stringify(updated)) } catch {}
+              return updated
+            })
           } else if (payload.eventType === 'UPDATE') {
-            setAmbulances((prev) =>
-              prev.map((a) =>
+            setAmbulances((prev) => {
+              const updated = prev.map((a) =>
                 a.id === payload.new.id
                   ? normalizeAmbulance({ ...a, ...payload.new } as Record<string, unknown>)
                   : a
               )
-            )
+              try { localStorage.setItem('mednet_cached_ambulances', JSON.stringify(updated)) } catch {}
+              return updated
+            })
           } else if (payload.eventType === 'DELETE') {
-            setAmbulances((prev) => prev.filter((a) => a.id === payload.old.id))
+            setAmbulances((prev) => {
+              const updated = prev.filter((a) => a.id !== payload.old.id)
+              try { localStorage.setItem('mednet_cached_ambulances', JSON.stringify(updated)) } catch {}
+              return updated
+            })
           }
         }
       )
@@ -611,6 +835,7 @@ export function useSupabaseData() {
       })
 
     return () => {
+      isMounted = false
       supabase.removeChannel(channel)
     }
   }, [fetchData])
@@ -623,11 +848,15 @@ export function useSupabaseData() {
     isLive,
     isUsingMockData,
     isSeeding,
+    queuedCount,
+    isSyncing,
+    flushOfflineQueue,
     isConfigured: isSupabaseConfigured(),
     refetch: fetchData,
     seedDatabase,
     addAmbulances,
     updateBedOccupancy,
+    adjustIcuReservation,
     updateAmbulance,
     updateAmbulanceErStatus,
     simulateCapacityCrisis,

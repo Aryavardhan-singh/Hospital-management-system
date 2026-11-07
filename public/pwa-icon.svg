@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="112" fill="#0f172a"/>
+  <!-- Hospital / Ambulance cross badge background -->
+  <circle cx="256" cy="256" r="190" fill="#1e293b" stroke="#334155" stroke-width="8"/>
+  
+  <!-- Ambulance Body outline/fill -->
+  <g transform="translate(96, 150)">
+    <!-- Main Box -->
+    <rect x="20" y="50" width="200" height="120" rx="16" fill="#f8fafc"/>
+    <!-- Cab -->
+    <path d="M220 70 L265 70 Q285 70 295 90 L305 120 Q310 130 310 145 L310 170 L220 170 Z" fill="#f8fafc"/>
+    <!-- Cab Window -->
+    <path d="M228 82 L260 82 Q274 82 282 96 L290 118 L228 118 Z" fill="#0284c7"/>
+    <!-- Side Red Stripe -->
+    <rect x="20" y="115" width="285" height="18" fill="#e11d48"/>
+    <!-- Red Cross on Side -->
+    <rect x="105" y="65" width="30" height="42" rx="4" fill="#e11d48"/>
+    <rect x="85" y="77" width="70" height="18" rx="4" fill="#e11d48"/>
+    <!-- Emergency Flashing Siren on roof -->
+    <rect x="80" y="36" width="36" height="14" rx="6" fill="#0284c7"/>
+    <rect x="140" y="36" width="36" height="14" rx="6" fill="#e11d48"/>
+    <!-- Wheels -->
+    <!-- Rear Wheel -->
+    <circle cx="75" cy="170" r="28" fill="#0f172a" stroke="#64748b" stroke-width="6"/>
+    <circle cx="75" cy="170" r="12" fill="#94a3b8"/>
+    <!-- Front Wheel -->
+    <circle cx="255" cy="170" r="28" fill="#0f172a" stroke="#64748b" stroke-width="6"/>
+    <circle cx="255" cy="170" r="12" fill="#94a3b8"/>
+    <!-- Headlight -->
+    <path d="M308 140 L318 144 L318 156 L308 156 Z" fill="#facc15"/>
+  </g>
+
+  <!-- Pulse / ECG Wave at bottom -->
+  <path d="M120 380 L180 380 L195 340 L215 420 L235 360 L250 395 L265 380 L392 380" fill="none" stroke="#38bdf8" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

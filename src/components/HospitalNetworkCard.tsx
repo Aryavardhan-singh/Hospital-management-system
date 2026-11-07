@@ -53,7 +53,7 @@ export const HospitalNetworkCard: React.FC<HospitalNetworkCardProps> = ({
   return (
     <div
       onClick={onClick}
-      className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_12px_30px_-6px_rgba(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
+      className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 border border-slate-100 dark:border-slate-800 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] dark:shadow-none hover:shadow-[0_12px_30px_-6px_rgba(0,0,0,0.1)] dark:hover:border-slate-700 hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col justify-between group relative overflow-hidden"
     >
       {/* Top Accent Indicator Bar */}
       <div className={`h-1.5 w-full absolute top-0 left-0 right-0 ${barColor}`} />
@@ -62,7 +62,7 @@ export const HospitalNetworkCard: React.FC<HospitalNetworkCardProps> = ({
         {/* Card Header: Hospital Name & Status Badge */}
         <div className="flex items-start justify-between gap-3 mb-4">
           <div>
-            <h3 className="text-base font-extrabold text-slate-900 group-hover:text-indigo-600 transition-colors flex items-center gap-2">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex items-center gap-2">
               <Building2 className="h-4.5 w-4.5 text-indigo-600 shrink-0" />
               <span className="truncate">{hospital.name}</span>
             </h3>
@@ -77,7 +77,7 @@ export const HospitalNetworkCard: React.FC<HospitalNetworkCardProps> = ({
 
           <div className="flex items-center space-x-2 shrink-0">
             {/* Live Connection Icon */}
-            <div className="h-6 w-6 rounded-full bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400" title={isLive ? "Supabase Live Subscribed" : "Preview Mode"}>
+            <div className="h-6 w-6 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 flex items-center justify-center text-slate-400" title={isLive ? "Supabase Live Subscribed" : "Preview Mode"}>
               <Radio className={`h-3 w-3 ${isLive ? 'text-emerald-500' : 'text-amber-500'}`} />
             </div>
 
@@ -90,16 +90,16 @@ export const HospitalNetworkCard: React.FC<HospitalNetworkCardProps> = ({
         {/* Capacity Metrics */}
         <div className="space-y-3.5 my-4">
           {/* General Beds Metric */}
-          <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-100">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-600 mb-1">
+          <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
               <span className="flex items-center gap-1.5">
                 <Activity className="h-3.5 w-3.5 text-indigo-600" /> General Beds
               </span>
-              <span className={`font-black font-mono transition-colors ${pulse ? 'text-indigo-600 scale-105' : 'text-slate-900'}`}>
+              <span className={`font-black font-mono transition-colors ${pulse ? 'text-indigo-600 scale-105' : 'text-slate-900 dark:text-white'}`}>
                 {hospital.occupied_beds} / {hospital.total_beds} ({Math.round(occupancyRate)}%)
               </span>
             </div>
-            <div className="h-2 w-full bg-slate-200/80 rounded-full overflow-hidden">
+            <div className="h-2 w-full bg-slate-200/80 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${barColor}`}
                 style={{ width: `${Math.min(100, occupancyRate)}%` }}
@@ -108,16 +108,16 @@ export const HospitalNetworkCard: React.FC<HospitalNetworkCardProps> = ({
           </div>
 
           {/* ICU Beds Metric */}
-          <div className="p-3 rounded-2xl bg-slate-50/50 border border-slate-100">
-            <div className="flex justify-between items-center text-xs font-bold text-slate-600 mb-1">
+          <div className="p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800">
+            <div className="flex justify-between items-center text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
               <span className="flex items-center gap-1.5 text-[11px]">
                 <HeartPulse className="h-3.5 w-3.5 text-rose-500" /> ICU Capacity
               </span>
-              <span className="font-extrabold font-mono text-slate-900">
+              <span className="font-extrabold font-mono text-slate-900 dark:text-white">
                 {hospital.icu_occupied} / {hospital.icu_beds} ({Math.round(icuOccupancyRate)}%)
               </span>
             </div>
-            <div className="h-1.5 w-full bg-slate-200/80 rounded-full overflow-hidden">
+            <div className="h-1.5 w-full bg-slate-200/80 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   icuOccupancyRate > 90
@@ -180,7 +180,7 @@ export const HospitalNetworkCard: React.FC<HospitalNetworkCardProps> = ({
         </div>
 
         {/* Specialty Pill Badges */}
-        <div className="mt-4 pt-3 border-t border-slate-100">
+        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
           <div className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider mb-2 flex items-center gap-1">
             <Stethoscope className="h-3 w-3 text-slate-400" /> SPECIALTIES
           </div>
@@ -188,7 +188,7 @@ export const HospitalNetworkCard: React.FC<HospitalNetworkCardProps> = ({
             {hospital.specialties.map((spec, i) => (
               <span
                 key={i}
-                className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200/60"
+                className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700"
               >
                 {spec}
               </span>
@@ -198,7 +198,7 @@ export const HospitalNetworkCard: React.FC<HospitalNetworkCardProps> = ({
       </div>
 
       {/* Card Action Link */}
-      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-extrabold text-indigo-600 group-hover:translate-x-1 transition-transform">
+      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-extrabold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-1 transition-transform">
         <span>View Full Breakdown & Manage</span>
         <ChevronRight className="h-4 w-4" />
       </div>

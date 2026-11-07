@@ -12,13 +12,22 @@ Before making any change, inspect the relevant files and understand how the exis
 
 ## Implemented features
 
+### Fleet response map (Fleet & Dispatch tab)
+
+- MapLibre emergency map centered on Jaipur with OpenFreeMap streets, high-resolution satellite imagery, and a tilted 3D terrain/building view.
+- Discovers nearby hospitals, clinics, and ambulance stations with OpenStreetMap Overpass; saved Supabase hospitals remain visible if Overpass is unavailable.
+- Requests browser GPS, displays a clearly labeled Jaipur-center fallback, and calculates selected-facility routes with OSRM and straight-line fallback.
+- Displays dispatch traffic/incident overlays and Supabase ambulance locations from the existing Realtime subscription; selecting a unit recenters the map.
+- Offers opt-in browser GPS sharing for a selected persisted ambulance record.
+- GPS sharing uses the demo's open RLS policies and has no driver authentication; it is not production-secure.
+
 ### Admin command center (`/`)
 
 - Overview dashboard with hospital and ambulance KPIs, analytics, quick actions, live/mock status, refresh and sample-data seeding.
 - Hospitals network page with hospital search, specialty filtering, ICU/ventilator requirement filters, oxygen-status filtering, sorting by capacity/name, facility cards, and a detail modal.
 - Hospital resource records include total/available ICU beds, available ventilators, oxygen status, and available blood types.
 - Bed occupancy adjustment controls and a demo action to set a hospital to full capacity.
-- Emergency fleet page with a Leaflet map, ambulance status/location panel, and dispatch controls for idle ambulances.
+- Emergency fleet page with a full-width MapLibre map, ambulance status/location panel, and dispatch controls for idle ambulances.
 - Hospital ER pre-arrival portal with incoming-unit status, triage handoff information, arrival ETAs, accept actions, and a manual divert workflow.
 - Response analytics view with modeled dispatch-to-arrival estimates, network bed/ICU utilization, fleet utilization, hospital occupancy comparison, and a 24-hour dispatch-volume chart.
 - Fleet incident simulator for Jaipur traffic zones, mass-casualty ambulance batches, and capacity surges; traffic zones affect route scoring and incident areas appear on the map.
@@ -36,9 +45,9 @@ Before making any change, inspect the relevant files and understand how the exis
 ### Citizen finder (`/public` and `/find-help`)
 
 - Requests browser location; if permission is denied, the user can enter coordinates or use a Jaipur-center fallback.
-- Ranks and displays up to three hospitals with availability labels, distance/ETA, and a Leaflet map. [`src/lib/osrm.ts`](./src/lib/osrm.ts) requests OSRM driving routes and route geometry for the citizen list, tracking view, and ER arrival estimates; requests that fail, time out, or return no route fall back to straight-line distance/estimated time.
+- Ranks and displays up to three hospitals with availability labels, distance/ETA, and a MapLibre map with Street, Satellite, and 3D modes. [`src/lib/osrm.ts`](./src/lib/osrm.ts) requests OSRM driving routes and route geometry for the citizen list, tracking view, and ER arrival estimates; requests that fail, time out, or return no route fall back to straight-line distance/estimated time.
 - Supports an optional specialty preference.
-- Includes a critical/moderate/minor triage-severity selector and a two-stage citizen tracking view for ambulance-to-patient pickup and onward hospital transport.
+- Includes a critical/moderate/minor triage-severity selector and a two-stage MapLibre tracking view for ambulance-to-patient pickup and onward hospital transport, with the same map modes and a vehicle marker.
 - “Request Emergency Ambulance” reuses an idle ambulance or inserts a new demo ambulance, assigning the citizen location and recommended hospital. In mock mode it updates only local demo state. This is not a connection to emergency services.
 - The UI advises users to call emergency services for life-threatening emergencies.
 
@@ -56,6 +65,8 @@ Before making any change, inspect the relevant files and understand how the exis
 ## Main code map
 
 - [`src/main.tsx`](./src/main.tsx): React Router setup and public/admin routes.
+- [`src/components/EmergencyMap.jsx`](./src/components/EmergencyMap.jsx): MapLibre map, facility discovery, browser GPS, OSRM routes, satellite layers, and ambulance GPS sharing.
+- [`src/lib/overpass.ts`](./src/lib/overpass.ts): nearby OpenStreetMap facility discovery with public endpoint fallbacks.
 - [`src/App.tsx`](./src/App.tsx): admin shell and tab/page composition.
 - [`src/pages/HospitalsNetworkPage.tsx`](./src/pages/HospitalsNetworkPage.tsx): searchable/filterable hospital directory and detail modal.
 - [`src/pages/FleetDispatchPage.tsx`](./src/pages/FleetDispatchPage.tsx): fleet monitor, dispatch UI, incident controls, map and reroute notifications.
@@ -84,6 +95,8 @@ Before making any change, inspect the relevant files and understand how the exis
 - Analytics response times are modeled from active ambulance-to-hospital straight-line distances at an assumed speed; the dispatch chart uses recorded ambulance creation timestamps when present or a clearly labeled simulated preview.
 - Incident controls write simulated ambulance rows and hospital capacity changes to Supabase when configured. Clearing overlays removes map visuals only; it does not delete generated requests or restore hospital occupancy.
 - The OSRM endpoint is a public demo service and is not suitable for guaranteed production availability.
+- Overpass endpoints are public services and may be rate-limited or unavailable; the map keeps displaying configured Supabase hospital records as a fallback.
+- The emergency-map GPS-sharing control writes ambulance coordinates through the demo-open Supabase policies. It is a prototype workflow without driver authentication, not a production tracking channel.
 - The pre-arrival portal is an in-app dashboard workflow, not an external push, SMS, or hospital paging notification service. Accept/divert actions update the demo ambulance record.
 - Supabase writes check returned errors before updating local state. Failures are shown in the admin toast/error banner and the citizen request flow displays its error; mock mode updates only local demo state. Public ambulance requests are not connected to real emergency services.
 - [`schema.sql`](./schema.sql) starts by dropping the existing `ambulances` and `hospitals` tables. Running it deletes their data; use only for a disposable/demo Supabase project unless the script is made non-destructive.

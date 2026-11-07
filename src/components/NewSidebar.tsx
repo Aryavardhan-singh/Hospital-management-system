@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   LayoutDashboard,
   Building2,
@@ -36,42 +37,43 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
   isLive,
   isUsingMockData,
 }) => {
+  const { t } = useTranslation()
   const isShowingLiveData = isLive && !isUsingMockData
 
   const mainNav = [
     {
       id: 'overview',
-      label: 'Command Center',
+      label: t('nav.commandCenter'),
       icon: LayoutDashboard,
       badge: null,
     },
     {
       id: 'beds',
-      label: 'Bed Adjustments',
+      label: t('nav.bedAdjustments'),
       icon: Building2,
       badge: hospitalCount > 0 ? hospitalCount : null,
     },
     {
       id: 'hospitals',
-      label: 'Hospitals Network',
+      label: t('nav.hospitalsNetwork'),
       icon: Building2,
       badge: hospitalCount > 0 ? hospitalCount : null,
     },
     {
       id: 'ambulances',
-      label: 'Fleet & Dispatch',
+      label: t('nav.fleetDispatch'),
       icon: Truck,
       badge: ambulanceCount > 0 ? ambulanceCount : null,
     },
     {
       id: 'alerts',
-      label: 'ER Pre-Arrival Alerts',
+      label: t('nav.erPreArrival'),
       icon: Activity,
       badge: incomingAlertCount > 0 ? `${incomingAlertCount} INCOMING` : null,
     },
     {
       id: 'analytics',
-      label: 'Response Analytics',
+      label: t('nav.responseAnalytics'),
       icon: BarChart3,
       badge: null,
     },
@@ -80,7 +82,7 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
   const systemNav = [
     {
       id: 'schema',
-      label: 'Supabase SQL Setup',
+      label: t('nav.sqlSetup'),
       icon: Database,
       badge: 'SQL',
     },
@@ -182,7 +184,7 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
 
           {visibleTabs.includes('schema') && <div>
             <div className="px-3 pb-2 text-[10px] font-extrabold text-slate-500 uppercase tracking-widest flex items-center justify-between">
-              <span>CITIZEN & PUBLIC ACCESS</span>
+              <span>PORTAILS D'ACCÈS RÉSEAU</span>
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
@@ -200,6 +202,38 @@ export const NewSidebar: React.FC<NewSidebarProps> = ({
                 <div className="flex items-center space-x-1.5">
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-500/20 text-rose-300 border border-rose-500/30">
                     PUBLIC
+                  </span>
+                  <ExternalLink className="h-3.5 w-3.5 text-slate-500 group-hover:text-white transition-colors" />
+                </div>
+              </Link>
+
+              <Link
+                to="/driver"
+                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-blue-500/50 transition-all duration-200 group"
+              >
+                <div className="flex items-center space-x-3">
+                  <Truck className="h-4 w-4 text-blue-400 group-hover:scale-110 transition-transform" />
+                  <span>Ambulance Driver</span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    DRIVER
+                  </span>
+                  <ExternalLink className="h-3.5 w-3.5 text-slate-500 group-hover:text-white transition-colors" />
+                </div>
+              </Link>
+
+              <Link
+                to="/hospital"
+                className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-xs font-bold text-slate-300 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 hover:border-purple-500/50 transition-all duration-200 group"
+              >
+                <div className="flex items-center space-x-3">
+                  <Building2 className="h-4 w-4 text-purple-400 group-hover:scale-110 transition-transform" />
+                  <span>Hospital ER Staff</span>
+                </div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    HOSPITAL
                   </span>
                   <ExternalLink className="h-3.5 w-3.5 text-slate-500 group-hover:text-white transition-colors" />
                 </div>

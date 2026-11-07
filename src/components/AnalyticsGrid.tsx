@@ -1,14 +1,35 @@
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import { Hospital, Ambulance, getCapacityLevel } from '@/types'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './ui/card'
-import { Building2, Activity, HeartPulse, Clock, ArrowUpRight, AlertTriangle, ShieldCheck } from 'lucide-react'
+import { Clock, AlertTriangle, ChevronDown, ChevronUp, Filter, ArrowUpDown } from 'lucide-react'
 
 interface AnalyticsGridProps {
   hospitals: Hospital[]
   ambulances: Ambulance[]
 }
 
+const PAGE_SIZE = 5
+
 export const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ hospitals, ambulances }) => {
+  const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'enroute' | 'occupied' | 'idle'>('all')
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
+
+  const filteredAmbulances = useMemo(() => {
+    let list = [...ambulances]
+    if (statusFilter !== 'all') {
+      list = list.filter((a) => a.status === statusFilter)
+    }
+    if (sortOrder === 'oldest') {
+      list.reverse()
+    }
+    return list
+  }, [ambulances, statusFilter, sortOrder])
+
+  const visibleAmbulances = useMemo(() => {
+    return filteredAmbulances.slice(0, visibleCount)
+  }, [filteredAmbulances, visibleCount])
+
   const sortedByCapacity = [...hospitals].sort(
     (a, b) => b.occupied_beds / b.total_beds - a.occupied_beds / a.total_beds
   )
@@ -141,7 +162,7 @@ export const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ hospitals, ambulan
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-2xl font-black text-slate-900 leading-none">78%</span>
+                <span className="text-2xl font-black text-slate-900 dark:text-slate-100 leading-none">78%</span>
                 <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">
                   TOTAL ICU
                 </span>
@@ -153,23 +174,23 @@ export const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ hospitals, ambulan
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-indigo-600" />
-                  <span className="text-slate-600">Trauma Level 1</span>
+                  <span className="text-slate-600 dark:text-slate-300">Trauma Level 1</span>
                 </div>
-                <span className="text-slate-900 font-extrabold">42%</span>
+                <span className="text-slate-900 dark:text-slate-100 font-extrabold">42%</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  <span className="text-slate-600">Cardiology</span>
+                  <span className="text-slate-600 dark:text-slate-300">Cardiology</span>
                 </div>
-                <span className="text-slate-900 font-extrabold">26%</span>
+                <span className="text-slate-900 dark:text-slate-100 font-extrabold">26%</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                  <span className="text-slate-600">Pediatric ER</span>
+                  <span className="text-slate-600 dark:text-slate-300">Pediatric ER</span>
                 </div>
-                <span className="text-slate-900 font-extrabold">10%</span>
+                <span className="text-slate-900 dark:text-slate-100 font-extrabold">10%</span>
               </div>
             </div>
           </CardContent>
@@ -193,7 +214,7 @@ export const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ hospitals, ambulan
               return (
                 <div
                   key={hospital.id}
-                  className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between"
+                  className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between"
                 >
                   <div className="flex items-center space-x-3 min-w-0">
                     <div
@@ -208,7 +229,7 @@ export const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ hospitals, ambulan
                       #{idx + 1}
                     </div>
                     <div className="min-w-0">
-                      <h4 className="text-xs font-extrabold text-slate-900 truncate">
+                      <h4 className="text-xs font-extrabold text-slate-900 dark:text-slate-100 truncate">
                         {hospital.name}
                       </h4>
                       <p className="text-[10px] text-slate-400 font-semibold">
@@ -237,46 +258,138 @@ export const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ hospitals, ambulan
 
       {/* Bottom 12-Column Row */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* (4-col) Real-time Emergency Dispatch Timeline */}
-        <Card className="lg:col-span-4 rounded-[2.5rem] p-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-extrabold text-slate-900 flex items-center justify-between">
-              <span>Recent Dispatches</span>
-              <Clock className="h-4 w-4 text-indigo-600" />
-            </CardTitle>
-            <CardDescription>Live Emergency Telemetry Feed</CardDescription>
-          </CardHeader>
+        {/* (5-col) Real-time Emergency Dispatch Timeline */}
+        <Card className="lg:col-span-5 rounded-[2.5rem] p-2 flex flex-col justify-between">
+          <div>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-extrabold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>Recent Dispatches</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-mono">
+                    {filteredAmbulances.length}
+                  </span>
+                </CardTitle>
+                <Clock className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <CardDescription>Live Emergency Telemetry Feed</CardDescription>
 
-          <CardContent className="space-y-4">
-            <div className="relative pl-5 border-l-2 border-slate-100 space-y-4">
-              {ambulances.map((amb, i) => (
-                <div key={amb.id} className="relative group">
-                  {/* Timeline Dot */}
-                  <span
-                    className={`absolute -left-[27px] top-1 h-3.5 w-3.5 rounded-full border-2 border-white shadow-xs ${
-                      amb.status === 'occupied'
-                        ? 'bg-rose-500'
-                        : amb.status === 'enroute'
-                        ? 'bg-amber-500'
-                        : 'bg-emerald-500'
-                    }`}
-                  />
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-extrabold text-slate-900">{amb.id}</span>
-                    <span className="text-[10px] font-bold text-slate-400">{i * 3 + 2}m ago</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Status:{' '}
-                    <span className="font-extrabold text-slate-800 uppercase">{amb.status}</span>
-                  </p>
+              {/* Filters & Sorting Controls */}
+              <div className="flex items-center justify-between gap-2 pt-2 text-xs">
+                {/* Filter dropdown */}
+                <div className="flex items-center gap-1.5">
+                  <Filter className="h-3 w-3 text-slate-400 shrink-0" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => {
+                      setStatusFilter(e.target.value as any)
+                      setVisibleCount(PAGE_SIZE)
+                    }}
+                    className="h-7 px-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-bold text-slate-700 dark:text-slate-200 focus:outline-none cursor-pointer"
+                  >
+                    <option value="all">All Units ({ambulances.length})</option>
+                    <option value="enroute">En Route</option>
+                    <option value="occupied">Occupied</option>
+                    <option value="idle">Idle / Staged</option>
+                  </select>
                 </div>
-              ))}
+
+                {/* Sort Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setSortOrder((prev) => (prev === 'newest' ? 'oldest' : 'newest'))}
+                  className="flex items-center gap-1 h-7 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                  <span>{sortOrder === 'newest' ? 'Newest' : 'Oldest'}</span>
+                </button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-3 pt-1">
+              {visibleAmbulances.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-400 font-semibold">
+                  No ambulances match the selected filter.
+                </div>
+              ) : (
+                <div className="relative pl-5 border-l-2 border-slate-100 dark:border-slate-800 space-y-3.5">
+                  {visibleAmbulances.map((amb, i) => (
+                    <div key={amb.id} className="relative group">
+                      {/* Timeline Dot */}
+                      <span
+                        className={`absolute -left-[27px] top-1 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-slate-900 shadow-xs ${
+                          amb.status === 'occupied'
+                            ? 'bg-rose-500'
+                            : amb.status === 'enroute'
+                            ? 'bg-amber-500'
+                            : 'bg-emerald-500'
+                        }`}
+                      />
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-extrabold text-slate-900 dark:text-slate-100">{amb.id}</span>
+                        <span className="text-[10px] font-bold text-slate-400">
+                          {sortOrder === 'newest' ? `${i * 3 + 2}m ago` : 'Earlier'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        <span>
+                          Status:{' '}
+                          <span
+                            className={`font-black uppercase ${
+                              amb.status === 'occupied'
+                                ? 'text-rose-600 dark:text-rose-400'
+                                : amb.status === 'enroute'
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : 'text-slate-600 dark:text-slate-400'
+                            }`}
+                          >
+                            {amb.status}
+                          </span>
+                        </span>
+                        {amb.patient_condition && (
+                          <span className="text-[10px] text-slate-400 truncate max-w-[150px]" title={amb.patient_condition}>
+                            {amb.patient_condition}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </div>
+
+          {/* Load More / Collapse Controls */}
+          <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+            <span className="text-[11px] font-semibold text-slate-400">
+              Showing {Math.min(visibleCount, filteredAmbulances.length)} of {filteredAmbulances.length}
+            </span>
+            <div className="flex items-center gap-1.5">
+              {visibleCount < filteredAmbulances.length && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 font-extrabold text-[11px] transition-colors"
+                >
+                  <ChevronDown className="h-3 w-3" />
+                  Load More
+                </button>
+              )}
+              {visibleCount > PAGE_SIZE && (
+                <button
+                  type="button"
+                  onClick={() => setVisibleCount(PAGE_SIZE)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-[11px] transition-colors"
+                >
+                  <ChevronUp className="h-3 w-3" />
+                  Collapse
+                </button>
+              )}
             </div>
-          </CardContent>
+          </div>
         </Card>
 
-        {/* (8-col) Hospital Beds Breakdown Matrix */}
-        <Card className="lg:col-span-8 rounded-[2.5rem] p-2">
+        {/* (7-col) Hospital Beds Breakdown Matrix */}
+        <Card className="lg:col-span-7 rounded-[2.5rem] p-2">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <div>
               <CardTitle className="text-base font-extrabold text-slate-900">
@@ -293,14 +406,14 @@ export const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ hospitals, ambulan
                 const level = getCapacityLevel(h.occupied_beds, h.total_beds)
 
                 return (
-                  <div key={h.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100">
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-900 mb-1.5">
+                  <div key={h.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-900 dark:text-slate-100 mb-1.5">
                       <span className="truncate">{h.name}</span>
                       <span className="font-extrabold">
                         {h.occupied_beds} / {h.total_beds} ({bedPct}%)
                       </span>
                     </div>
-                    <div className="h-2.5 w-full bg-slate-200/70 rounded-full overflow-hidden">
+                    <div className="h-2.5 w-full bg-slate-200/70 dark:bg-slate-700/80 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           level === 'critical'
